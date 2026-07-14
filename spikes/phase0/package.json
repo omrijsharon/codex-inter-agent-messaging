@@ -1,0 +1,16 @@
+{
+  "name": "codex-inter-agent-phase0-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "schema:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File ./verify-schema.ps1",
+    "registry:verify": "node validate-registry.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "smoke:shared-queue": "node shared-ownership-probe.mjs",
+    "threads": "node phase0-cli.mjs list",
+    "mcp": "node mcp-server.mjs"
+  },
+  "dependencies": {
+    "ws": "8.21.0"
+  }
+}

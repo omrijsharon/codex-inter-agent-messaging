@@ -1,0 +1,16 @@
+{
+  "agents": {
+    "inter-agent": {
+      "display_name": "inter-agent",
+      "thread_id": "<inter-agent-thread-id>",
+      "status": "active",
+      "accepts_messages": true
+    },
+    "prepare-inter-agent-thread": {
+      "display_name": "Prepare inter-agent thread",
+      "thread_id": "<prepare-inter-agent-thread-id>",
+      "status": "active",
+      "accepts_messages": true
+    }
+  }
+}

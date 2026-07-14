@@ -1,0 +1,3 @@
+{"method":"thread/status/changed","params":{"threadId":"thread_fixture","status":{"type":"active","activeFlags":[]}}}
+{"method":"item/completed","params":{"threadId":"thread_fixture","turnId":"turn_fixture","item":{"type":"agentMessage","id":"item_fixture","text":"FIXTURE_REPLY","phase":"final_answer"},"completedAtMs":1}}
+{"method":"turn/completed","params":{"threadId":"thread_fixture","turn":{"id":"turn_fixture","status":"completed","items":[]}}}

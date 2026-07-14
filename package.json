@@ -1,0 +1,64 @@
+{
+  "name": "codex-inter-agent-messaging",
+  "version": "0.3.0",
+  "private": true,
+  "description": "On-demand messaging between participating Codex threads through a shared app-server.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0",
+    "npm": ">=10.9.0"
+  },
+  "bin": {
+    "codex-inter-agent": "dist/cli/main.js",
+    "codex-inter-agent-host": "dist/app_server/main.js",
+    "codex-inter-agent-mcp": "dist/messaging/mcp_server.js"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "RELEASES.md",
+    "CODEX_INTER_AGENT_MESSAGING_BRIDGE.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node scripts/clean.mjs",
+    "dev": "tsx src/cli/main.ts",
+    "dev:host": "tsx src/app_server/main.ts",
+    "format": "prettier --write src tests scripts docs README.md package.json tsconfig.json tsconfig.build.json eslint.config.js vitest.config.ts",
+    "format:check": "prettier --check src tests scripts docs README.md package.json tsconfig.json tsconfig.build.json eslint.config.js vitest.config.ts",
+    "lint": "eslint src tests scripts vitest.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:coverage": "vitest run --coverage",
+    "schema:generate": "node scripts/generate-codex-protocol.mjs",
+    "schema:check": "node scripts/check-codex-protocol.mjs",
+    "smoke:messaging": "tsx tests/runtime/real-messaging.smoke.ts",
+    "smoke:async": "tsx tests/runtime/real-async.smoke.ts",
+    "smoke:group": "tsx tests/runtime/real-async.smoke.ts",
+    "smoke:package": "node scripts/smoke-package.mjs",
+    "verify": "run-s format:check lint typecheck test schema:check",
+    "verify:all": "run-s verify test:integration build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "better-sqlite3": "12.11.1",
+    "ws": "8.21.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "22.20.1",
+    "@types/better-sqlite3": "7.6.13",
+    "@types/ws": "8.18.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "9.39.5",
+    "npm-run-all2": "8.0.4",
+    "prettier": "3.9.5",
+    "tsx": "4.23.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.50.0",
+    "vitest": "4.1.10"
+  }
+}

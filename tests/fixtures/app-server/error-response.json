@@ -1,0 +1,10 @@
+{
+  "id": 9,
+  "error": {
+    "code": -32600,
+    "message": "recipient thread already has an active turn",
+    "data": {
+      "threadId": "thread_fixture"
+    }
+  }
+}

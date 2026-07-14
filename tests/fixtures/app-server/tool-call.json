@@ -1,0 +1,14 @@
+{
+  "id": 41,
+  "method": "item/tool/call",
+  "params": {
+    "threadId": "thread_fixture",
+    "turnId": "turn_fixture",
+    "callId": "call_fixture",
+    "tool": "ask_agent",
+    "arguments": {
+      "recipient": "cfo",
+      "message": "fixture request"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": 1,
+  "result": {
+    "serverInfo": {
+      "name": "codex-app-server",
+      "version": "0.144.0-alpha.4"
+    }
+  }
+}

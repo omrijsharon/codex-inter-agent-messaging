@@ -5,8 +5,16 @@ import { migration002 } from "./migrations/002_reliability.js";
 import { migration003 } from "./migrations/003_security.js";
 import { migration004 } from "./migrations/004_async.js";
 import { migration005 } from "./migrations/005_groups.js";
+import { migration006 } from "./migrations/006_owner_binding.js";
 
-const migrations = [migration001, migration002, migration003, migration004, migration005] as const;
+const migrations = [
+  migration001,
+  migration002,
+  migration003,
+  migration004,
+  migration005,
+  migration006,
+] as const;
 
 function migrationChecksum(sql: string): string {
   return createHash("sha256").update(sql, "utf8").digest("hex");

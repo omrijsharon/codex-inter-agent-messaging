@@ -8,6 +8,7 @@ import { migration001 } from "../../src/store/migrations/001_initial.js";
 import { migration002 } from "../../src/store/migrations/002_reliability.js";
 import { migration003 } from "../../src/store/migrations/003_security.js";
 import { migration004 } from "../../src/store/migrations/004_async.js";
+import { migration005 } from "../../src/store/migrations/005_groups.js";
 import {
   AclRepository,
   AgentRepository,
@@ -41,7 +42,7 @@ describe("durable store", () => {
     expect(first.database.pragma("synchronous", { simple: true })).toBe(2);
     expect(first.database.prepare("SELECT count(*) AS count FROM schema_migrations").get()).toEqual(
       {
-        count: 5,
+        count: 6,
       },
     );
     const reopened = new BridgeDatabase(filename);
@@ -52,7 +53,7 @@ describe("durable store", () => {
     expect(
       reopened.database.prepare("SELECT count(*) AS count FROM schema_migrations").get(),
     ).toEqual({
-      count: 5,
+      count: 6,
     });
   });
 
@@ -90,10 +91,11 @@ describe("durable store", () => {
     });
     expect(
       upgraded.database.prepare("SELECT max(version) AS version FROM schema_migrations").get(),
-    ).toEqual({ version: 5 });
+    ).toEqual({ version: 6 });
     expect(new AgentRepository(upgraded).get("legacy")).toMatchObject({
       activeThreadId: "thread_legacy",
       generation: 1,
+      ownerMode: "unverified",
     });
     expect(
       upgraded.database
@@ -105,7 +107,8 @@ describe("durable store", () => {
   it.each([
     [3, [migration001, migration002, migration003]],
     [4, [migration001, migration002, migration003, migration004]],
-  ] as const)("upgrades the released schema v%i to v5", async (_version, migrations) => {
+    [5, [migration001, migration002, migration003, migration004, migration005]],
+  ] as const)("upgrades the released schema v%i to v6", async (_version, migrations) => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "codex-inter-agent-upgrade-"));
     cleanup.push(() => rm(directory, { recursive: true, force: true }));
     const filename = path.join(directory, "released.sqlite3");
@@ -128,7 +131,7 @@ describe("durable store", () => {
     });
     expect(
       upgraded.database.prepare("SELECT max(version) AS version FROM schema_migrations").get(),
-    ).toEqual({ version: 5 });
+    ).toEqual({ version: 6 });
     expect(
       upgraded.database
         .prepare("SELECT count(*) AS count FROM schema_migrations WHERE checksum IS NULL")
@@ -139,10 +142,10 @@ describe("durable store", () => {
   it("rejects future schemas and changed recorded migration bodies", async () => {
     const { first } = await databasePair();
     first.database
-      .prepare("UPDATE schema_migrations SET checksum = 'tampered' WHERE version = 5")
+      .prepare("UPDATE schema_migrations SET checksum = 'tampered' WHERE version = 6")
       .run();
     expect(() => first.migrate()).toThrow(/checksum/);
-    first.database.prepare("DELETE FROM schema_migrations WHERE version = 5").run();
+    first.database.prepare("DELETE FROM schema_migrations WHERE version = 6").run();
     first.database
       .prepare(
         "INSERT INTO schema_migrations(version, name, applied_at, checksum) VALUES (99, 'future', ?, 'future')",
@@ -179,6 +182,53 @@ describe("durable store", () => {
         .prepare("SELECT status FROM agent_thread_generations WHERE thread_id = 'thread_1'")
         .get(),
     ).toEqual({ status: "superseded" });
+  });
+
+  it("adopts an existing generation into one stable authoritative owner", async () => {
+    const { first } = await databasePair();
+    const unbound = new AgentRepository(first);
+    const initial = unbound.register({
+      agentId: "legacy",
+      displayName: "Legacy",
+      threadId: "thread_legacy",
+      workspace: "C:/legacy",
+    });
+    expect(initial).toMatchObject({ ownerMode: "unverified", generation: 1 });
+    const binding = {
+      ownerMode: "bridge-managed" as const,
+      installationId: "installation-a",
+      databaseId: "database-a",
+      protocolVersion: "1",
+    };
+    const owned = new AgentRepository(first, binding);
+    const adopted = owned.bindCurrentOwner("legacy", 1);
+    expect(adopted).toMatchObject({
+      activeThreadId: "thread_legacy",
+      generation: 1,
+      workspace: "C:/legacy",
+      ownerMode: "bridge-managed",
+      ownerInstallationId: "installation-a",
+      ownerDatabaseId: "database-a",
+      ownerProtocolVersion: "1",
+    });
+    expect(owned.isOwnedByCurrentHost(adopted)).toBe(true);
+    expect(
+      new AgentRepository(first, { ...binding, databaseId: "database-b" }).isOwnedByCurrentHost(
+        adopted,
+      ),
+    ).toBe(false);
+    expect(
+      first.database
+        .prepare(
+          "SELECT owner_mode, owner_installation_id, owner_database_id, owner_protocol_version FROM agent_thread_generations WHERE agent_id = 'legacy' AND generation = 1",
+        )
+        .get(),
+    ).toEqual({
+      owner_mode: "bridge-managed",
+      owner_installation_id: "installation-a",
+      owner_database_id: "database-a",
+      owner_protocol_version: "1",
+    });
   });
 
   it("persists messages, attempts, terminal results, and rejects invalid transitions", async () => {

@@ -28,7 +28,12 @@ async function setup(maxGroupFanout = 20) {
     store.close();
     return Promise.resolve();
   });
-  const agents = new AgentRepository(store);
+  const agents = new AgentRepository(store, {
+    ownerMode: "bridge-managed",
+    installationId: "test-installation",
+    databaseId: "test-database",
+    protocolVersion: "1",
+  });
   for (const id of ["owner", "member-a", "member-b", "outsider"]) {
     agents.register({
       agentId: id,
@@ -60,7 +65,7 @@ async function setup(maxGroupFanout = 20) {
         }),
       });
     },
-    readThread: () => Promise.resolve({ thread: { turns: [] } }),
+    readThread: (threadId: string) => Promise.resolve({ thread: { id: threadId, turns: [] } }),
   } as unknown as AppServerClient;
   const base = loadConfig({}, directory);
   const config = {

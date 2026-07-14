@@ -26,4 +26,13 @@
 - Protocol: Codex CLI `0.144.0-alpha.4`, generated digest `d27d0610897f1e9bc4d344eca4ce89628d5215495c2d3e3cc19dedba00cf6961`
 - Release artifact validation: `npm run smoke:package`
 
+## v0.4.0 automatic-bootstrap plugin record
+
+- Prepared for Milestones 13–17 acceptance on 2026-07-14 (Asia/Jerusalem).
+- Source/plugin version: `0.4.0`; database schema 6; owner protocol 2; descriptor schema 3.
+- Adds repository-marketplace plugin packaging, automatic authenticated singleton bootstrap, stock remote-CLI connection, per-generation owner binding, typed desktop-owner rejection, and lifecycle diagnostics.
+- Protocol: Codex CLI `0.144.0-alpha.4`, generated digest `d27d0610897f1e9bc4d344eca4ce89628d5215495c2d3e3cc19dedba00cf6961`.
+- Acceptance evidence: `docs/evidence/authoritative-owner-integration.md` and `docs/evidence/v0.4-final-verification.md`.
+- Release artifact validation: `npm run plugin:validate`, `npm run smoke:plugin`, and `npm run smoke:package`.
+
 This file is the repository-local release record. No remote tag or publication is implied.

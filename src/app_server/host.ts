@@ -10,6 +10,8 @@ import { LOG_EVENTS, type Logger } from "../logging/logger.js";
 export interface SharedAppServerConnection {
   readonly url: string;
   readonly authToken: string;
+  readonly pid: number;
+  readonly startedAt: string;
 }
 
 export interface SharedAppServerHostOptions {
@@ -78,6 +80,10 @@ export class SharedAppServerHost {
     return this.#connection;
   }
 
+  get childPid(): number | null {
+    return this.running ? (this.#child?.pid ?? null) : null;
+  }
+
   async start(): Promise<SharedAppServerConnection> {
     if (this.running) return this.connection;
     const url = await concreteListenUrl(this.#options.appServer.listenUrl);
@@ -101,7 +107,8 @@ export class SharedAppServerHost {
       },
     );
     this.#child = child;
-    this.#connection = { url, authToken };
+    if (!child.pid) throw new Error("app-server child did not expose a process ID");
+    this.#connection = { url, authToken, pid: child.pid, startedAt: new Date().toISOString() };
     child.stderr?.setEncoding("utf8");
     child.stderr?.on("data", (chunk: string) => {
       this.#stderr = `${this.#stderr}${chunk}`.slice(-8192);
@@ -127,7 +134,13 @@ export class SharedAppServerHost {
       new Promise<void>((resolve) => child.once("exit", () => resolve())),
       delay(5_000).then(() => undefined),
     ]);
-    if (child.exitCode === null) child.kill("SIGKILL");
+    if (child.exitCode === null) {
+      child.kill("SIGKILL");
+      await Promise.race([
+        new Promise<void>((resolve) => child.once("exit", () => resolve())),
+        delay(5_000).then(() => undefined),
+      ]);
+    }
     this.#options.logger.info(LOG_EVENTS.appServerStopped, { pid: child.pid });
   }
 

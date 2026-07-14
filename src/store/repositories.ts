@@ -4,6 +4,8 @@ import type { BridgeDatabase } from "./database.js";
 import {
   assertMessageTransition,
   type AgentRecord,
+  type AgentOwnerBinding,
+  type AgentOwnerMode,
   type AgentStatus,
   type MessageKind,
   type MessageRecord,
@@ -18,6 +20,10 @@ type AgentRow = {
   workspace: string;
   accepts_messages: number;
   status: AgentStatus;
+  owner_mode: AgentOwnerMode;
+  owner_installation_id: string | null;
+  owner_database_id: string | null;
+  owner_protocol_version: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -62,6 +68,10 @@ function agent(row: AgentRow): AgentRecord {
     workspace: row.workspace,
     acceptsMessages: row.accepts_messages === 1,
     status: row.status,
+    ownerMode: row.owner_mode,
+    ownerInstallationId: row.owner_installation_id,
+    ownerDatabaseId: row.owner_database_id,
+    ownerProtocolVersion: row.owner_protocol_version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -101,7 +111,10 @@ function message(row: MessageRow): MessageRecord {
 }
 
 export class AgentRepository {
-  constructor(readonly store: BridgeDatabase) {}
+  constructor(
+    readonly store: BridgeDatabase,
+    readonly ownerBinding?: AgentOwnerBinding,
+  ) {}
 
   register(input: {
     agentId: string;
@@ -114,16 +127,31 @@ export class AgentRepository {
     this.store.immediateTransaction(() => {
       this.store.database
         .prepare(
-          `INSERT INTO agents(agent_id, display_name, active_thread_id, generation, workspace, accepts_messages, status, created_at, updated_at)
-           VALUES (@agentId, @displayName, @threadId, 1, @workspace, 1, 'active', @now, @now)`,
+          `INSERT INTO agents(agent_id, display_name, active_thread_id, generation, workspace, accepts_messages, status, owner_mode, owner_installation_id, owner_database_id, owner_protocol_version, created_at, updated_at)
+           VALUES (@agentId, @displayName, @threadId, 1, @workspace, 1, 'active', @ownerMode, @ownerInstallationId, @ownerDatabaseId, @ownerProtocolVersion, @now, @now)`,
         )
-        .run({ ...input, now });
+        .run({
+          ...input,
+          ownerMode: this.ownerBinding?.ownerMode ?? "unverified",
+          ownerInstallationId: this.ownerBinding?.installationId ?? null,
+          ownerDatabaseId: this.ownerBinding?.databaseId ?? null,
+          ownerProtocolVersion: this.ownerBinding?.protocolVersion ?? null,
+          now,
+        });
       this.store.database
         .prepare(
-          `INSERT INTO agent_thread_generations(agent_id, generation, thread_id, status, created_at)
-           VALUES (?, 1, ?, 'active', ?)`,
+          `INSERT INTO agent_thread_generations(agent_id, generation, thread_id, status, owner_mode, owner_installation_id, owner_database_id, owner_protocol_version, created_at)
+           VALUES (?, 1, ?, 'active', ?, ?, ?, ?, ?)`,
         )
-        .run(input.agentId, input.threadId, now);
+        .run(
+          input.agentId,
+          input.threadId,
+          this.ownerBinding?.ownerMode ?? "unverified",
+          this.ownerBinding?.installationId ?? null,
+          this.ownerBinding?.databaseId ?? null,
+          this.ownerBinding?.protocolVersion ?? null,
+          now,
+        );
     });
     return this.get(input.agentId);
   }
@@ -191,17 +219,85 @@ export class AgentRepository {
         .run(now, agentId, expectedGeneration);
       this.store.database
         .prepare(
-          "INSERT INTO agent_thread_generations(agent_id, generation, thread_id, status, created_at) VALUES (?, ?, ?, 'active', ?)",
+          "INSERT INTO agent_thread_generations(agent_id, generation, thread_id, status, owner_mode, owner_installation_id, owner_database_id, owner_protocol_version, created_at) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)",
         )
-        .run(agentId, expectedGeneration + 1, newThreadId, now);
+        .run(
+          agentId,
+          expectedGeneration + 1,
+          newThreadId,
+          this.ownerBinding?.ownerMode ?? "unverified",
+          this.ownerBinding?.installationId ?? null,
+          this.ownerBinding?.databaseId ?? null,
+          this.ownerBinding?.protocolVersion ?? null,
+          now,
+        );
       const changed = this.store.database
         .prepare(
-          "UPDATE agents SET active_thread_id = ?, generation = ?, workspace = ?, status = 'active', accepts_messages = 1, updated_at = ? WHERE agent_id = ? AND generation = ?",
+          "UPDATE agents SET active_thread_id = ?, generation = ?, workspace = ?, status = 'active', accepts_messages = 1, owner_mode = ?, owner_installation_id = ?, owner_database_id = ?, owner_protocol_version = ?, updated_at = ? WHERE agent_id = ? AND generation = ?",
         )
-        .run(newThreadId, expectedGeneration + 1, workspace, now, agentId, expectedGeneration);
+        .run(
+          newThreadId,
+          expectedGeneration + 1,
+          workspace,
+          this.ownerBinding?.ownerMode ?? "unverified",
+          this.ownerBinding?.installationId ?? null,
+          this.ownerBinding?.databaseId ?? null,
+          this.ownerBinding?.protocolVersion ?? null,
+          now,
+          agentId,
+          expectedGeneration,
+        );
       if (changed.changes !== 1) throw new Error("agent generation changed during replacement");
     });
     return this.get(agentId);
+  }
+
+  bindCurrentOwner(agentId: string, expectedGeneration: number): AgentRecord {
+    if (!this.ownerBinding) throw new Error("authoritative owner binding is unavailable");
+    this.store.immediateTransaction(() => {
+      const result = this.store.database
+        .prepare(
+          `UPDATE agents
+         SET owner_mode = ?, owner_installation_id = ?, owner_database_id = ?, owner_protocol_version = ?, updated_at = ?
+         WHERE agent_id = ? AND generation = ? AND status = 'active'`,
+        )
+        .run(
+          this.ownerBinding?.ownerMode,
+          this.ownerBinding?.installationId,
+          this.ownerBinding?.databaseId,
+          this.ownerBinding?.protocolVersion,
+          new Date().toISOString(),
+          agentId,
+          expectedGeneration,
+        );
+      if (result.changes !== 1) throw new Error("agent generation is not active or has changed");
+      const generation = this.store.database
+        .prepare(
+          `UPDATE agent_thread_generations
+         SET owner_mode = ?, owner_installation_id = ?, owner_database_id = ?, owner_protocol_version = ?
+         WHERE agent_id = ? AND generation = ? AND status = 'active'`,
+        )
+        .run(
+          this.ownerBinding?.ownerMode,
+          this.ownerBinding?.installationId,
+          this.ownerBinding?.databaseId,
+          this.ownerBinding?.protocolVersion,
+          agentId,
+          expectedGeneration,
+        );
+      if (generation.changes !== 1) throw new Error("active thread generation binding is missing");
+    });
+    return this.get(agentId);
+  }
+
+  isOwnedByCurrentHost(record: AgentRecord): boolean {
+    return (
+      this.ownerBinding !== undefined &&
+      record.ownerMode === this.ownerBinding.ownerMode &&
+      record.ownerInstallationId === this.ownerBinding.installationId &&
+      record.ownerDatabaseId === this.ownerBinding.databaseId &&
+      record.ownerProtocolVersion === this.ownerBinding.protocolVersion
+    );
   }
 }
 

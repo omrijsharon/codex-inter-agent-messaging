@@ -1,0 +1,20 @@
+{
+  "name": "codex-inter-agent-local",
+  "interface": {
+    "displayName": "Codex Inter Agent Local"
+  },
+  "plugins": [
+    {
+      "name": "codex-inter-agent-messaging",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-inter-agent-messaging"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "DeveloperTools"
+    }
+  ]
+}

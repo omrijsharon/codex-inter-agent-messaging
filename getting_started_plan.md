@@ -1,9 +1,9 @@
 # Getting Started Implementation Plan
 
 **Project:** Codex Inter-Agent Messaging Bridge  
-**Plan status:** Complete  
+**Plan status:** Complete — v0.4.0 automatic singleton bootstrap and Codex plugin integration accepted
 **Architecture source:** CODEX_INTER_AGENT_MESSAGING_BRIDGE.md  
-**Next task:** Complete — all planned milestones are implemented and verified  
+**Next task:** None — Milestones 1–17 are complete
 **Timezone for completion records:** Asia/Jerusalem  
 
 ## How to use this plan
@@ -458,3 +458,272 @@
 
 - All plan tasks and milestones are complete and timestamped.
 - The project can be installed, tested, upgraded, diagnosed, and maintained using repository documentation.
+
+---
+
+## Milestone 13 — Automatic bootstrap and Codex integration feasibility gate
+
+- [x] **Milestone 13 complete — The singleton-launch design and supported Codex ownership topology are proven before implementation begins.** — Completed: 2026-07-14 21:13:21 +03:00 (Asia/Jerusalem)
+
+### Tasks
+
+- [x] **13.1 Reconcile the automatic-bootstrap and plugin scope with CODEX_INTER_AGENT_MESSAGING_BRIDGE.md before changing runtime behavior.** — Completed: 2026-07-14 21:06:34 +03:00 (Asia/Jerusalem)
+  - Add the MCP-triggered bootstrap sequence, singleton ownership rules, lifecycle boundaries, failure modes, and desktop-host limitation to the normative architecture.
+  - Update the threat model for executable plugin installation, startup races, stale process metadata, local privilege boundaries, and compromised launch configuration.
+- [x] **13.2 Record the exact Codex CLI, desktop app, app-server, plugin-manifest, MCP, and hook versions used for this feature.** — Completed: 2026-07-14 21:11:10 +03:00 (Asia/Jerusalem)
+  - Regenerate app-server protocol artifacts if the installed Codex version changed.
+  - Link the current official Codex plugin, MCP, hooks, app-server, and open-source documentation in the decision record.
+- [x] **13.3 Define the supported product surfaces and avoid treating them as interchangeable.** — Completed: 2026-07-14 21:11:10 +03:00 (Asia/Jerusalem)
+  - Separate open-source Codex CLI/app-server, official desktop app, IDE extension, and custom app-server client behavior.
+  - State which surface owns participating threads and which process is allowed to call `thread/resume` and `turn/start`.
+- [x] **13.4 Instrument a disposable plugin/MCP probe to observe the real Codex process lifecycle.** — Completed: 2026-07-14 21:11:10 +03:00 (Asia/Jerusalem)
+  - Measure whether Codex launches MCP at application startup, task creation, thread resume, subagent start, or another boundary.
+  - Record how many MCP processes appear for two simultaneous tasks and after app restart.
+  - Verify Codex may launch more than one MCP process; never base correctness on “started exactly once.”
+- [x] **13.5 Prove that an installed local plugin can bundle and automatically start a STDIO MCP server on the supported CLI surface, and record the safe desktop verification boundary.** — Completed: 2026-07-14 21:11:10 +03:00 (Asia/Jerusalem)
+  - Use a minimal `.codex-plugin/plugin.json` plus `.mcp.json` fixture.
+  - Verify tool discovery in Codex CLI on the pinned version.
+  - Record restart/new-task requirements and why restarting the active desktop implementation thread or automating a replacement task is not a valid acceptance method.
+- [x] **13.6 Prove a trustworthy per-caller identity binding for the plugin-provided MCP process.** — Completed: 2026-07-14 21:11:10 +03:00 (Asia/Jerusalem)
+  - Determine whether Codex supplies non-model-controlled thread/session metadata or whether trusted project/profile configuration remains required.
+  - Reject any design that accepts `sender_agent_id`, caller thread ID, or identity credentials as model tool arguments.
+- [x] **13.7 Determine whether the official desktop app exposes a supported binding to its live authoritative app-server owner.** — Completed: 2026-07-14 21:11:10 +03:00 (Asia/Jerusalem)
+  - Look for a documented authenticated endpoint, host callback, app-server request proxy, or supported remote-owner configuration.
+  - Prove it with a harmless `thread/read`/status operation against a disposable desktop-owned thread.
+  - If no binding exists, record a hard no-go for direct desktop-owned-thread delivery; automatic process startup alone must not be called desktop integration.
+- [x] **13.8 Re-run the ownership conflict experiment for the new topology.** — Completed: 2026-07-14 21:13:21 +03:00 (Asia/Jerusalem)
+  - Verify that two independent app-server owners remain forbidden for one participating thread.
+  - Verify the candidate bootstrap never launches another owner when a compatible authoritative owner already exists.
+- [x] **13.9 Define the bootstrap state machine and process contracts.** — Completed: 2026-07-14 21:13:21 +03:00 (Asia/Jerusalem)
+  - Specify states such as `unknown`, `checking`, `starting`, `ready`, `incompatible`, `stale`, `stopping`, and `failed`.
+  - Define the launcher-to-host connection descriptor, authenticated readiness exchange, version negotiation, and structured error codes.
+- [x] **13.10 Choose explicit host lifetime semantics.** — Completed: 2026-07-14 21:13:21 +03:00 (Asia/Jerusalem)
+  - Decide whether the per-user singleton survives MCP disconnects indefinitely, exits after a bounded idle period, or is managed by a service.
+  - Ensure one task closing cannot terminate a host still used by other tasks.
+  - Define app restart, user logout, operating-system shutdown, upgrade, and uninstall behavior.
+- [x] **13.11 Review the proposal against least privilege and local-user isolation.** — Completed: 2026-07-14 21:13:21 +03:00 (Asia/Jerusalem)
+  - Define owner-only permissions for locks, descriptors, sockets, tokens, logs, and database files.
+  - Require local-only transport and authenticated health checks; a PID or open port alone is not proof of identity.
+- [x] **13.12 Write a GO/NO-GO decision record for implementation.** — Completed: 2026-07-14 21:13:21 +03:00 (Asia/Jerusalem)
+  - A GO must identify the supported Codex surfaces, authoritative owner, caller identity source, bootstrap mechanism, and required restart behavior.
+  - A NO-GO must preserve the current manual host path and name the upstream API or product change needed.
+
+### Exit criteria
+
+- The installed plugin/MCP lifecycle has been observed rather than assumed.
+- The design cannot start two app-server owners for the same participating thread.
+- Caller identity and host readiness are authenticated and non-model-controlled.
+- Official desktop participation is claimed only if access to its authoritative owner is proven through a supported interface.
+
+---
+
+## Milestone 14 — Race-safe singleton host bootstrap
+
+- [x] **Milestone 14 complete — Any number of MCP startups converge on one compatible authenticated bridge host without manual launch.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+
+### Tasks
+
+- [x] **14.1 Add an `ensureHostRunning()` runtime module shared by the MCP entrypoint and administrative CLI.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Keep the bootstrap mechanism independent of model-facing tool schemas.
+  - Return a typed connection result or typed startup failure.
+- [x] **14.2 Define a per-user runtime identity and stable bootstrap location.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Derive paths from the trusted bridge data directory, not the current repository or model input.
+  - Include installation identity where necessary so development and installed releases do not accidentally share a host.
+- [x] **14.3 Implement the healthy-host fast path.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Read the connection descriptor with strict schema validation.
+  - Connect using the protected capability token and call an authenticated readiness/version probe.
+  - Reuse the host only when identity, protocol, package version policy, database, and expected owner mode are compatible.
+- [x] **14.4 Implement an atomic cross-process startup lock.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Use an operating-system-supported exclusive primitive or an atomic filesystem/SQLite lease with owner nonce and timestamp.
+  - Never use an ordinary “file exists” check as the sole lock.
+  - Bound lock acquisition and expose diagnostics for the current lock owner.
+- [x] **14.5 Recheck host readiness after acquiring the startup lock.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - If another MCP process completed startup while this process waited, release the lock and reuse that host.
+  - This double-check is required before every launch.
+- [x] **14.6 Start the host as a detached, non-interactive child with no visible console window.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Pass configuration through trusted environment or protected files, not shell-concatenated model text.
+  - Capture a process nonce, PID, executable path/version, start time, and parent launch reason without storing secrets.
+  - Ensure the child does not inherit MCP stdio handles that would keep a task alive accidentally.
+- [x] **14.7 Wait for bounded authenticated readiness before serving MCP tools.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Poll with backoff until the descriptor is atomically published and the authenticated health probe succeeds.
+  - Fail MCP initialization clearly on timeout; never expose tools backed by an unverified host.
+- [x] **14.8 Implement safe stale-lock and stale-descriptor recovery.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Distinguish slow startup, crashed owner, PID reuse, corrupt metadata, incompatible version, and permission denial.
+  - Quarantine corrupt descriptors and remove stale startup locks only after bounded owner validation.
+  - Never kill an unknown process merely because its PID matches stale metadata.
+- [x] **14.9 Handle incompatible running versions without split-brain.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Refuse to start a second host on version/protocol mismatch.
+  - Return an actionable `HOST_INCOMPATIBLE` diagnostic with supported upgrade/restart steps.
+  - Define whether a controlled zero-client handoff is supported; otherwise require explicit operator restart.
+- [x] **14.10 Make host lifetime independent of individual MCP process lifetime.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Closing one task or MCP pipe must not stop the singleton while other clients may use it.
+  - Implement the lifetime policy selected in Milestone 13, including bounded idle shutdown if chosen.
+- [x] **14.11 Add explicit `host status`, `host start`, `host stop`, and `host restart` administrative commands.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - `start` must call the same idempotent bootstrap path as MCP.
+  - `stop` must authenticate, verify identity, reject active-delivery shutdown unless forced by an operator, and clean descriptors safely.
+- [x] **14.12 Add structured bootstrap and lifecycle observability.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Log startup correlation ID, launcher PID, host PID/nonce, lock waits, readiness duration, reuse, recovery, and shutdown reason.
+  - Redact tokens, paths, peer bodies, and configuration secrets.
+  - Extend `health` with host uptime, version, bootstrap mode, active MCP clients, and last recovery result.
+- [x] **14.13 Add deterministic unit tests for every bootstrap state and race.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Cover healthy reuse, missing host, two and three simultaneous starters, slow startup, startup crash, stale lock, stale descriptor, corrupt descriptor, wrong token, version mismatch, timeout, and permission failure.
+- [x] **14.14 Add multi-process integration tests with a fake host and real filesystem/SQLite locking.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Launch multiple MCP-compatible bootstrap processes concurrently and assert exactly one host start.
+  - Verify every caller receives the same authenticated host identity and endpoint.
+  - Verify one caller exiting does not stop delivery for another.
+- [x] **14.15 Exercise the real host bootstrap three times from a clean stopped state.** — Completed: 2026-07-14 21:43:24 +03:00 (Asia/Jerusalem)
+  - Include one single MCP start, one simultaneous multi-MCP start, and one crash/recovery run.
+  - Confirm no orphaned console, host, lock, socket, token, or descriptor remains after the documented shutdown path.
+
+### Exit criteria
+
+- Manual execution of `codex-inter-agent-host` is no longer required in the supported topology.
+- Concurrent MCP launches create exactly one compatible authenticated host.
+- Stale state recovers without killing unrelated processes or creating split-brain ownership.
+- Startup, reuse, failure, and shutdown are diagnosable without exposing secrets.
+
+---
+
+## Milestone 15 — Installable Codex plugin and bundled MCP integration
+
+- [x] **Milestone 15 complete — Installing and enabling the plugin gives supported Codex tasks the messaging tools and automatic singleton bootstrap.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+
+### Tasks
+
+- [x] **15.1 Scaffold a standards-compliant plugin package.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Add `.codex-plugin/plugin.json` with stable name, version, description, repository, license, and interface metadata.
+  - Keep plugin assets and optional skills outside `.codex-plugin/` according to Codex path rules.
+- [x] **15.2 Add plugin-provided MCP configuration in `.mcp.json`.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Point the bundled STDIO server at the installed bootstrap-aware MCP entrypoint.
+  - Configure bounded startup/tool timeouts, required behavior, and safe default approval modes.
+  - Do not embed capability tokens, database paths, live thread IDs, or workstation-specific absolute paths.
+- [x] **15.3 Make packaged command and asset resolution relocatable.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Resolve paths relative to the installed plugin/package root on Windows and other supported platforms.
+  - Test paths containing spaces and non-ASCII characters.
+- [x] **15.4 Invoke `ensureHostRunning()` before MCP initialization completes.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Reuse a healthy singleton or launch one through the race-safe path.
+  - If bootstrap fails, fail initialization with a concise remediation instead of registering broken tools.
+- [x] **15.5 Implement the trusted caller-identity mechanism approved in Milestone 13.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Support per-project/profile identity binding or verified host metadata without adding sender fields to model tool inputs.
+  - Detect missing, duplicate, stale, or conflicting identity bindings before accepting messages.
+- [x] **15.6 Preserve the existing strict MCP tool surface and add server instructions.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Bundle synchronous, asynchronous, inbox, group, and status tools without exposing administrative registration/rebinding operations.
+  - Use MCP `instructions` to explain on-demand use, anti-loop rules, recipient selection, and bounded status recovery.
+- [x] **15.7 Decide whether a plugin `SessionStart` hook adds value beyond MCP bootstrap.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Use a hook only for a bounded launcher/health check that exits promptly and has explicit trust behavior.
+  - Do not use unsupported asynchronous hooks or a long-running hook process as the daemon.
+  - Avoid duplicate bootstrap paths unless they call the same idempotent implementation.
+- [x] **15.8 Add a local personal/repository marketplace for development installation.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Include a valid marketplace entry with availability/authentication policy and plugin-relative source path.
+  - Document add, refresh, install, enable, disable, upgrade, and uninstall steps.
+- [x] **15.9 Verify plugin discovery and tool exposure in Codex CLI.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Install from the local marketplace, restart Codex, open a new task, inspect plugin/MCP state, and call `list_agents`.
+  - Confirm Codex starts the MCP process and host automatically from a fully stopped state.
+- [x] **15.10 Record the official desktop plugin boundary on the pinned build without disrupting the active implementation thread.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Confirm the supported installation contract and current desktop/app-server process ownership.
+  - Do not restart the active implementation owner or automate a replacement UI task merely to claim discovery.
+  - Record that tool discovery, if manually observed after a safe restart, does not make private desktop-owned histories supported delivery targets without an authenticated owner adapter.
+- [x] **15.11 Verify multi-task and subagent behavior.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Open two participating tasks and a bounded subagent scenario.
+  - Confirm extra MCP processes reuse one host and receive correct caller identity/tool policy.
+  - Confirm a subagent cannot inherit or forge a parent agent identity unless explicitly supported by the trusted binding design.
+- [x] **15.12 Add plugin validation, packaging, and clean-install smoke tests.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Validate manifest paths, `.mcp.json`, marketplace metadata, packaged files, command executability, version synchronization, and absence of local secrets.
+  - Install the packed plugin/package into a temporary Codex home and exercise automatic bootstrap plus MCP handshake.
+- [x] **15.13 Document plugin security and administration boundaries.** — Completed: 2026-07-14 22:29:51 +03:00 (Asia/Jerusalem)
+  - Explain hook trust, executable provenance, local-user authority, MCP approvals, identity configuration, and why registration/ACL/group administration remain operator-only.
+
+### Exit criteria
+
+- A user can install the plugin without editing package source or entering machine-specific paths.
+- A new supported Codex task receives callable messaging tools after the documented restart/new-task boundary.
+- Plugin/MCP startup automatically converges on one host and never trusts model-supplied identity.
+- Plugin uninstall and upgrade have explicit, safe host/data lifecycle instructions.
+
+---
+
+## Milestone 16 — Authoritative Codex client ownership integration
+
+- [x] **Milestone 16 complete — Supported Codex clients and the bridge agree on one authoritative app-server owner for every participating thread.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+
+### Tasks
+
+- [x] **16.1 Add an explicit owner-mode capability handshake between MCP, bridge host, and Codex client.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Record host identity, app-server version, transport, capability-token mode, and ownership generation.
+  - Refuse delivery when ownership cannot be proven.
+- [x] **16.2 Automate the supported open-source CLI connection workflow.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Start/reuse the bridge singleton, then connect the Codex CLI TUI to that owner using the supported remote transport.
+  - Keep raw tokens out of process arguments and shell history.
+  - Provide a wrapper or documented command that makes this one user action rather than two terminals.
+- [x] **16.3 Verify existing registered histories can resume through the auto-started shared owner.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Preserve stable agent IDs, generations, workspaces, and existing transcripts.
+  - Reject a history still active under an independent owner.
+- [x] **16.4 Add fail-closed detection for independently desktop-owned threads.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Before `turn/start`, verify the target is visible through the same live owner and its state is authoritative.
+  - Return `UNSUPPORTED_THREAD_OWNER` rather than trying a second app-server or guessing from persisted history.
+- [x] **16.5 Implement a desktop host adapter only if Milestone 13 proved a supported interface.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Route thread status/read/resume/start through the desktop app's existing authenticated owner binding.
+  - Do not automate the UI, inject history, scrape logs, or edit Codex rollout/session databases.
+  - Keep the adapter behind capability negotiation so unsupported desktop builds fail clearly.
+- [x] **16.6 If no supported desktop owner binding exists, prepare an upstream proposal instead of a binary patch.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Specify the minimum authenticated host API needed: caller identity, current thread identity, owner identity, thread status, and authorized cross-thread `turn/start`.
+  - File or prepare a focused feature request/PR against the open-source Codex app-server with security and re-entrancy requirements.
+  - Keep official desktop-owned threads explicitly unsupported until an adopted release exposes the binding.
+- [x] **16.7 Evaluate a custom Codex CLI/app-server fork as an optional advanced integration.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Pin an upstream revision and locate the smallest app-server extension point for registry, scheduling, and inter-thread routing.
+  - Compare built-in routing with the plugin/MCP adapter; do not maintain two divergent semantic implementations.
+  - Record rebuild, signing/distribution, update/rebase, and compatibility costs before choosing this path.
+- [x] **16.8 Run the core ownership and delivery matrix through the auto-started topology.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Cover list, synchronous reply, pending/status recovery, async delivery, explicit reply, group fan-out, busy queueing, duplicate invocation, and stale generation.
+  - Verify all recipient turns are attributed to the correct message and owner.
+- [x] **16.9 Test negative ownership scenarios.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Cover desktop-owned target without adapter, incompatible owner, wrong token, stale descriptor, two launchers, active unrelated turn, and owner restart during delivery.
+  - Assert no duplicate or misattributed target turn is created.
+- [x] **16.10 Re-run approval, sandbox, and caller-spoofing tests through the plugin path.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Ensure plugin installation and automatic host launch do not widen permissions or auto-approve recipient work.
+- [x] **16.11 Record real end-to-end evidence for every claimed Codex surface.** — Completed: 2026-07-14 23:29:32 +03:00 (Asia/Jerusalem)
+  - Include app/CLI versions, task/thread/message/turn IDs, process counts, owner identity, exact startup flow, and cleanup results.
+
+### Exit criteria
+
+- Each participating thread has exactly one authoritative app-server owner.
+- The supported CLI workflow needs no manually managed host terminal.
+- Official desktop-owned threads are either proven through a supported adapter or rejected with a documented typed error.
+- No success claim depends on binary patching, UI automation, or direct mutation of Codex internal state.
+
+---
+
+## Milestone 17 — Automatic-bootstrap plugin release and operational acceptance
+
+- [x] **Milestone 17 complete — The plugin-integrated automatic-bootstrap release is installable, secure, observable, and maintainable.** — Completed: 2026-07-14 23:35:20 +03:00 (Asia/Jerusalem)
+
+### Tasks
+
+- [x] **17.1 Select and synchronize the release version across package, lockfile, plugin manifest, MCP metadata, app-server client metadata, schemas, and release records.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+- [x] **17.2 Update installation documentation to lead with the plugin workflow.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+  - Include prerequisites, marketplace/plugin installation, trusted caller identity setup, restart/new-task boundary, registration, first message, and verification.
+  - Retain manual host startup only as a diagnostic or unsupported-topology fallback when appropriate.
+- [x] **17.3 Add an automatic-bootstrap troubleshooting decision tree.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+  - Cover plugin not visible, MCP not started, tools not exposed, lock wait, stale state, wrong token, incompatible host, owner conflict, hidden child failure, and unsupported desktop owner.
+- [x] **17.4 Document normal operations and lifecycle commands.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+  - Include status, logs, health, stop/restart, upgrades, idle policy, app restart, OS reboot, backup, uninstall, and data retention.
+- [x] **17.5 Update the maintenance and threat-model documents.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+  - Record plugin provenance, hooks/MCP trust, singleton recovery, executable updates, local attack surface, version skew, and desktop limitations.
+- [x] **17.6 Add release artifact checks for plugin contents and secret hygiene.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+  - Reject live registries, capability tokens, local descriptors, database files, logs, absolute workstation paths, and developer-only Codex configuration.
+- [x] **17.7 Run all unit, integration, security, recovery, migration, plugin, packaging, and ownership tests from a clean environment.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+  - Run format, lint, strict types, schema drift, coverage, production build, package smoke, and plugin clean-install smoke.
+- [x] **17.8 Run the bounded real-runtime stability matrix.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+  - Perform three clean auto-starts, one healthy reuse, one simultaneous multi-MCP start, one host crash/recovery, and one expected ownership rejection.
+  - Run at least one successful inter-agent exchange on every surface claimed as supported.
+- [x] **17.9 Review logs, processes, handles, descriptors, locks, and temporary files after every runtime scenario.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+  - Confirm no visible consoles, orphaned launchers, duplicate hosts, leaked tokens, or unreaped processes remain.
+- [x] **17.10 Produce release notes, compatibility table, known limitations, rollback instructions, and maintainer handoff.** — Completed: 2026-07-14 23:34:30 +03:00 (Asia/Jerusalem)
+- [x] **17.11 Mechanically audit the expanded plan ledger and record final evidence before marking this milestone complete.** — Completed: 2026-07-14 23:35:20 +03:00 (Asia/Jerusalem)
+
+### Exit criteria
+
+- Installing/enabling the plugin is sufficient to expose tools and start/reuse the bridge in every claimed supported Codex client.
+- Concurrent tasks never create duplicate bridge hosts or app-server owners.
+- Failure and recovery are typed, bounded, observable, and safe.
+- Documentation clearly distinguishes supported CLI/custom-host integration from any unproven official desktop integration.

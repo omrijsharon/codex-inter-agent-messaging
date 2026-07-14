@@ -26,7 +26,12 @@ async function setup(appServer: AppServerClient, overrides: Record<string, numbe
     store.close();
     return Promise.resolve();
   });
-  const agents = new AgentRepository(store);
+  const agents = new AgentRepository(store, {
+    ownerMode: "bridge-managed",
+    installationId: "test-installation",
+    databaseId: "test-database",
+    protocolVersion: "1",
+  });
   agents.register({
     agentId: "sender",
     displayName: "Sender",
@@ -87,12 +92,68 @@ function completed(threadId: string, turnId: string, reply: string) {
 }
 
 describe("DeliveryScheduler", () => {
+  it("fails closed for an unbound recipient before any app-server call", async () => {
+    let appServerCalls = 0;
+    const fake = {
+      resumeThread: () => {
+        appServerCalls += 1;
+        return Promise.resolve({ thread: { status: { type: "idle" } } });
+      },
+      readThread: () => {
+        appServerCalls += 1;
+        return Promise.resolve({ thread: { turns: [] } });
+      },
+      startTurn: () => {
+        appServerCalls += 1;
+        throw new Error("must not start");
+      },
+    } as unknown as AppServerClient;
+    const context = await setup(fake);
+    context.store.database
+      .prepare(
+        "UPDATE agents SET owner_mode = 'unverified', owner_installation_id = NULL, owner_database_id = NULL, owner_protocol_version = NULL WHERE agent_id = 'recipient'",
+      )
+      .run();
+    const created = context.create("unsupported-owner");
+    const result = await new DeliveryScheduler({ instanceId: "owner-check", ...context }).schedule(
+      created.messageId,
+    );
+    expect(result).toMatchObject({
+      status: "failed",
+      errorCode: "UNSUPPORTED_THREAD_OWNER",
+    });
+    expect(appServerCalls).toBe(0);
+  });
+
+  it("fails closed when resume returns a different thread identity", async () => {
+    let starts = 0;
+    const fake = {
+      resumeThread: () =>
+        Promise.resolve({ thread: { id: "thread_foreign", status: { type: "idle" } } }),
+      startTurn: () => {
+        starts += 1;
+        throw new Error("must not start");
+      },
+    } as unknown as AppServerClient;
+    const context = await setup(fake);
+    const created = context.create("wrong-thread-owner");
+    const result = await new DeliveryScheduler({ instanceId: "wrong-thread", ...context }).schedule(
+      created.messageId,
+    );
+    expect(result).toMatchObject({
+      status: "failed",
+      errorCode: "UNSUPPORTED_THREAD_OWNER",
+    });
+    expect(starts).toBe(0);
+  });
+
   it("preserves per-recipient FIFO and excludes concurrent delivery", async () => {
     const order: string[] = [];
     let active = 0;
     let maximumActive = 0;
     const fake = {
-      resumeThread: () => Promise.resolve({ thread: { status: { type: "idle" } } }),
+      resumeThread: (threadId: string) =>
+        Promise.resolve({ thread: { id: threadId, status: { type: "idle" } } }),
       startTurn: (_threadId: string, _text: string, options: { clientUserMessageId: string }) => {
         order.push(options.clientUserMessageId);
         active += 1;
@@ -135,9 +196,11 @@ describe("DeliveryScheduler", () => {
     let starts = 0;
     let now = Date.now();
     const fake = {
-      resumeThread: () => {
+      resumeThread: (threadId: string) => {
         resumes += 1;
-        return Promise.resolve({ thread: { status: { type: resumes < 3 ? "active" : "idle" } } });
+        return Promise.resolve({
+          thread: { id: threadId, status: { type: resumes < 3 ? "active" : "idle" } },
+        });
       },
       startTurn: () => {
         starts += 1;
@@ -167,16 +230,18 @@ describe("DeliveryScheduler", () => {
   it("reconciles an accepted turn by client message ID after a disconnect", async () => {
     let starts = 0;
     const fake = {
-      resumeThread: () => Promise.resolve({ thread: { status: { type: "idle" } } }),
+      resumeThread: (threadId: string) =>
+        Promise.resolve({ thread: { id: threadId, status: { type: "idle" } } }),
       startTurn: () => {
         starts += 1;
         throw Object.assign(new Error("transport disconnected after acceptance"), {
           code: "TRANSPORT_CLOSED",
         });
       },
-      readThread: () =>
+      readThread: (threadId: string) =>
         Promise.resolve({
           thread: {
+            id: threadId,
             turns: [
               {
                 id: "turn_recovered",
@@ -206,12 +271,13 @@ describe("DeliveryScheduler", () => {
   it("bounds transient retries and records a terminal failure", async () => {
     let starts = 0;
     const fake = {
-      resumeThread: () => Promise.resolve({ thread: { status: { type: "idle" } } }),
+      resumeThread: (threadId: string) =>
+        Promise.resolve({ thread: { id: threadId, status: { type: "idle" } } }),
       startTurn: () => {
         starts += 1;
         throw Object.assign(new Error("temporary disconnect"), { code: "TRANSPORT_CLOSED" });
       },
-      readThread: () => Promise.resolve({ thread: { turns: [] } }),
+      readThread: (threadId: string) => Promise.resolve({ thread: { id: threadId, turns: [] } }),
     } as unknown as AppServerClient;
     const context = await setup(fake, { maxRetryAttempts: 2 });
     context.create("msg_retry");
@@ -229,7 +295,8 @@ describe("DeliveryScheduler", () => {
   it("checks current generation before recovering an expired lease", async () => {
     let starts = 0;
     const fake = {
-      resumeThread: () => Promise.resolve({ thread: { status: { type: "idle" } } }),
+      resumeThread: (threadId: string) =>
+        Promise.resolve({ thread: { id: threadId, status: { type: "idle" } } }),
       startTurn: () => {
         starts += 1;
         throw new Error("must not start");
@@ -330,7 +397,8 @@ describe("DeliveryScheduler", () => {
     "persists a structured failure for a %s recipient turn",
     async (status) => {
       const fake = {
-        resumeThread: () => Promise.resolve({ thread: { status: { type: "idle" } } }),
+        resumeThread: (threadId: string) =>
+          Promise.resolve({ thread: { id: threadId, status: { type: "idle" } } }),
         startTurn: () =>
           Promise.resolve({
             turnId: `turn_${status}`,
@@ -357,7 +425,8 @@ describe("DeliveryScheduler", () => {
   it("maps unrecoverable context saturation without retry or rebinding", async () => {
     let starts = 0;
     const fake = {
-      resumeThread: () => Promise.resolve({ thread: { status: { type: "idle" } } }),
+      resumeThread: (threadId: string) =>
+        Promise.resolve({ thread: { id: threadId, status: { type: "idle" } } }),
       startTurn: () => {
         starts += 1;
         return Promise.resolve({
@@ -398,11 +467,12 @@ describe("DeliveryScheduler", () => {
 
   it("dead-letters asynchronous work after bounded transient retries", async () => {
     const fake = {
-      resumeThread: () => Promise.resolve({ thread: { status: { type: "idle" } } }),
+      resumeThread: (threadId: string) =>
+        Promise.resolve({ thread: { id: threadId, status: { type: "idle" } } }),
       startTurn: () => {
         throw Object.assign(new Error("temporary disconnect"), { code: "TRANSPORT_CLOSED" });
       },
-      readThread: () => Promise.resolve({ thread: { turns: [] } }),
+      readThread: (threadId: string) => Promise.resolve({ thread: { id: threadId, turns: [] } }),
     } as unknown as AppServerClient;
     const context = await setup(fake, { maxRetryAttempts: 2 });
     context.messages.create({

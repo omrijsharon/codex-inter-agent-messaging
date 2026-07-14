@@ -26,7 +26,12 @@ async function setup(resumeStatus: () => string = () => "idle", ttlMs = 60_000) 
     store.close();
     return Promise.resolve();
   });
-  const agents = new AgentRepository(store);
+  const agents = new AgentRepository(store, {
+    ownerMode: "bridge-managed",
+    installationId: "test-installation",
+    databaseId: "test-database",
+    protocolVersion: "1",
+  });
   agents.register({
     agentId: "sender",
     displayName: "Sender",
@@ -72,7 +77,7 @@ async function setup(resumeStatus: () => string = () => "idle", ttlMs = 60_000) 
         }),
       });
     },
-    readThread: () => Promise.resolve({ thread: { turns: [] } }),
+    readThread: (threadId: string) => Promise.resolve({ thread: { id: threadId, turns: [] } }),
   } as unknown as AppServerClient;
   const base = loadConfig({}, directory);
   const config = {

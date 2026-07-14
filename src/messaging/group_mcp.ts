@@ -4,6 +4,19 @@ import { z } from "zod";
 import type { GroupMessagingService } from "./group_service.js";
 import { MessagingError } from "./service.js";
 
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+const WRITE = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
+} as const;
+
 function snake(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(snake);
   if (value === null || typeof value !== "object") return value;
@@ -71,6 +84,7 @@ export function registerGroupMessagingTools(
           }),
         ),
       }),
+      annotations: READ_ONLY,
     },
     () => result({ groups: service.listGroups() }),
   );
@@ -85,6 +99,7 @@ export function registerGroupMessagingTools(
         idempotency_key: z.string().min(1).max(256).optional(),
       }),
       outputSchema: groupStatusSchema,
+      annotations: WRITE,
     },
     (input) => {
       try {
@@ -107,6 +122,7 @@ export function registerGroupMessagingTools(
       description: "Inspect independent per-recipient outcomes for a visible group message.",
       inputSchema: z.strictObject({ group_message_id: z.string().min(1) }),
       outputSchema: groupStatusSchema,
+      annotations: READ_ONLY,
     },
     (input) => {
       try {
@@ -125,6 +141,7 @@ export function registerGroupMessagingTools(
         recipients: z.array(z.string().min(1)).max(100).optional(),
       }),
       outputSchema: groupStatusSchema,
+      annotations: WRITE,
     },
     (input) => {
       try {
@@ -146,6 +163,7 @@ export function registerGroupMessagingTools(
           z.strictObject({ from_agent: z.string(), message_id: z.string(), reply: z.string() }),
         ),
       }),
+      annotations: READ_ONLY,
     },
     (input) => {
       try {

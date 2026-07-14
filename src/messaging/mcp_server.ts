@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { AppServerClient } from "../app_server/client.js";
-import { resolveSharedOwnerUrl } from "../app_server/runtime.js";
+import { ensureHostRunning } from "../app_server/bootstrap.js";
+import { registerHostClient } from "../app_server/control.js";
 import { loadConfig } from "../config/index.js";
 import { createLogger } from "../logging/logger.js";
 import { BridgeDatabase } from "../store/database.js";
@@ -40,7 +41,13 @@ export function createMessagingMcpServer(
   asyncService: AsyncMessagingService,
   groupService: GroupMessagingService,
 ): McpServer {
-  const server = new McpServer({ name: "codex-inter-agent-messaging", version: BRIDGE_VERSION });
+  const server = new McpServer(
+    { name: "codex-inter-agent-messaging", version: BRIDGE_VERSION },
+    {
+      instructions:
+        "Use these tools only on explicit demand. Select registered recipients with list_agents, avoid request cycles, and recover pending work with status/inbox tools. Sender identity is trusted process configuration and cannot be overridden by tool arguments.",
+    },
+  );
   server.registerTool(
     "list_agents",
     {
@@ -56,6 +63,12 @@ export function createMessagingMcpServer(
           }),
         ),
       }),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     () => {
       const agents = service.listAgents().map((agent) => ({
@@ -90,6 +103,12 @@ export function createMessagingMcpServer(
         error_code: z.string().optional(),
         error: z.string().optional(),
       }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async (input, extra) => {
       try {
@@ -135,6 +154,12 @@ export function createMessagingMcpServer(
         error_code: z.string().optional(),
         error: z.string().optional(),
       }),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     (input) => toolResult(publicResult(service.status(input.message_id))),
   );
@@ -159,21 +184,56 @@ async function main(): Promise<void> {
   if (!senderAgentId)
     throw new Error("BRIDGE_AGENT_ID is required in trusted MCP process configuration");
   const config = loadConfig();
-  const appServerUrl = await resolveSharedOwnerUrl(config);
+  const logger = createLogger(config.logLevel);
   await mkdir(path.dirname(config.databasePath), { recursive: true });
   const store = new BridgeDatabase(config.databasePath);
+  const acl = new AclRepository(store);
+  const unboundAgents = new AgentRepository(store);
+  const messages = new MessageRepository(store);
+  const leases = new RecipientLeaseRepository(store);
+  let caller;
+  try {
+    caller = unboundAgents.get(senderAgentId);
+  } catch (error) {
+    store.close();
+    throw error;
+  }
+  if (caller.status !== "active" || !caller.acceptsMessages) {
+    store.close();
+    throw new Error(`trusted caller identity is not active: ${senderAgentId}`);
+  }
+  const managedHost = await ensureHostRunning(config, { logger });
+  const agents = new AgentRepository(store, {
+    ownerMode: managedHost.descriptor.ownerMode,
+    installationId: managedHost.descriptor.installationId,
+    databaseId: managedHost.descriptor.databaseId,
+    protocolVersion: managedHost.descriptor.protocolVersion,
+  });
+  if (!agents.isOwnedByCurrentHost(agents.get(senderAgentId))) {
+    store.close();
+    throw new Error(`trusted caller identity has no authoritative owner binding: ${senderAgentId}`);
+  }
+  const instanceId = `mcp_${randomUUID()}`;
   const appServer = new AppServerClient({
-    url: appServerUrl,
-    authToken: (await readFile(config.appServer.tokenPath, "utf8")).trim(),
+    url: managedHost.url,
+    authToken: managedHost.authToken,
     requestTimeoutMs: config.appServer.requestTimeoutMs,
     reconnectLimit: config.appServer.reconnectLimit,
   });
-  await appServer.connect();
-  const acl = new AclRepository(store);
-  const agents = new AgentRepository(store);
-  const messages = new MessageRepository(store);
-  const leases = new RecipientLeaseRepository(store);
-  const instanceId = `mcp_${randomUUID()}`;
+  let hostLease;
+  try {
+    await appServer.connect();
+    hostLease = await registerHostClient(
+      managedHost.descriptor,
+      managedHost.authToken,
+      instanceId,
+      appServer.serverIdentity?.userAgent ?? "",
+    );
+  } catch (error) {
+    await appServer.close().catch(() => undefined);
+    store.close();
+    throw error;
+  }
   const scheduler = new DeliveryScheduler({
     instanceId,
     config: { ...config.messaging, turnTimeoutMs: config.appServer.turnTimeoutMs },
@@ -181,7 +241,7 @@ async function main(): Promise<void> {
     agents,
     messages,
     leases,
-    logger: createLogger(config.logLevel),
+    logger,
   });
   const authorize = (from: string, to: string): boolean =>
     acl.isAllowed(from, to, config.security.aclDefaultPolicy === "allow");
@@ -214,13 +274,19 @@ async function main(): Promise<void> {
   });
   service.start();
   const server = createMessagingMcpServer(service, asyncService, groupService);
+  let shuttingDown = false;
   const shutdown = async (): Promise<void> => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     await server.close();
+    await hostLease.close();
     await appServer.close();
     store.close();
   };
   process.once("SIGINT", () => void shutdown());
   process.once("SIGTERM", () => void shutdown());
+  process.stdin.once("end", () => void shutdown());
+  process.stdin.once("close", () => void shutdown());
   await server.connect(new StdioServerTransport());
 }
 

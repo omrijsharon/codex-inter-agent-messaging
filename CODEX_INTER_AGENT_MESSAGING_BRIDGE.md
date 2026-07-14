@@ -2,7 +2,7 @@
 
 ## Implementation specification for Codex app-server
 
-**Status:** Implemented through v0.3.0; normative architecture and maintenance specification  
+**Status:** Implemented through v0.4.0; normative architecture and maintenance specification
 **Last updated:** 2026-07-14  
 **Primary goal:** Give participating persistent Codex threads, hosted through one bridge-managed shared app-server, an on-demand messaging tool so their agents can send requests and receive replies without a human copying text between threads.
 
@@ -114,6 +114,7 @@ The v0.1 release established this synchronous core. The v0.2 and v0.3 releases s
 - **v0.1.0:** synchronous `list_agents`, `ask_agent`, and `get_request_status`.
 - **v0.2.0:** fire-and-forget delivery, durable inbox read/acknowledgement, explicit replies, status, expiry, and dead letters.
 - **v0.3.0:** durable groups, immutable membership snapshots, independent fan-out, partial status, selective retry, and explicit reply gathering.
+- **v0.4.0:** installable Codex plugin, automatic singleton bootstrap, remote CLI connection, and fail-closed authoritative owner binding.
 
 Every cross-agent edge remains explicit and caller-authenticated. Neither asynchronous delivery nor groups introduce a coordinator or automatically forward assistant output.
 
@@ -329,7 +330,7 @@ Initialize app-server with experimental APIs enabled:
     "clientInfo": {
       "name": "codex_inter_agent_bridge",
       "title": "Codex Inter-Agent Bridge",
-      "version": "0.3.0"
+      "version": "0.4.0"
     },
     "capabilities": {
       "experimentalApi": true
@@ -709,7 +710,7 @@ The implemented schema also includes:
 - `groups`, `group_members`, `group_messages`, and `group_deliveries` for roles, immutable membership snapshots, and independent fan-out outcomes; and
 - `schema_migrations` with version, name, application time, and SHA-256 body checksum.
 
-Package/schema compatibility is v0.1.x → schema 3, v0.2.x → schema 4, and v0.3.x → schema 5. The runtime applies missing migrations transactionally, rejects a database with an unknown future schema version, and rejects a recorded migration checksum/name mismatch.
+Package/schema compatibility is v0.1.x → schema 3, v0.2.x → schema 4, v0.3.x → schema 5, and v0.4.x → schema 6. The runtime applies missing migrations transactionally, rejects a database with an unknown future schema version, and rejects a recorded migration checksum/name mismatch. Schema-5 registrations migrate as unverified until explicit owner adoption.
 
 Acquire and renew recipient leases transactionally so separate MCP tool processes cannot start overlapping deliveries. Expired leases must be reconciled against app-server's live thread state before another runtime starts a turn.
 
@@ -796,6 +797,47 @@ The messaging tool runtime must implement an explicit approval policy. Safe MVP 
 - route approval requests to an explicitly configured human UI/terminal.
 
 Do not auto-approve commands merely because another internal agent requested them. Inter-agent authority is not equivalent to human authorization.
+
+### 13.6 Automatic MCP-triggered bootstrap and plugin integration
+
+The installable Codex integration is a plugin that contributes a local STDIO MCP server. Codex may create one MCP process per task, resumed task, subagent, or client process; the bridge must therefore treat every MCP startup as a concurrent bootstrap request, never as proof that the host starts exactly once. The plugin process performs no delivery until it has obtained an authenticated connection to the one compatible bridge host.
+
+The MCP startup sequence is normative:
+
+1. Load trusted local configuration, including the caller's configured agent identity. No model tool argument may select or override the sender.
+2. Inspect the protected connection descriptor and capability token.
+3. Authenticate to the advertised loopback endpoint and perform a bridge health/version/owner-mode exchange. A PID, an open port, or a syntactically valid descriptor is not sufficient.
+4. If the compatible host is healthy, reuse it.
+5. Otherwise acquire the per-user atomic startup lock, repeat the authenticated health check, and only then launch a detached host.
+6. Wait for the host to atomically publish a descriptor and pass authenticated readiness within the configured deadline. MCP initialization fails closed if readiness is not proven.
+7. Connect the MCP routing runtime and only then expose tools.
+
+The bootstrap state machine is `unknown -> checking -> ready` for reuse and `unknown -> checking -> starting -> ready` for launch. `checking` may classify local state as `stale` or `incompatible`; terminal failures are `failed`. Administrative shutdown uses `ready -> stopping -> unknown`. Every transition has a bounded deadline and a structured diagnostic. Required stable codes include `HOST_START_TIMEOUT`, `HOST_LOCK_TIMEOUT`, `HOST_DESCRIPTOR_INVALID`, `HOST_AUTH_FAILED`, `HOST_INCOMPATIBLE`, `HOST_PERMISSION_DENIED`, and `UNSUPPORTED_THREAD_OWNER`.
+
+The connection descriptor is atomically replaced and contains only non-secret metadata: schema version, bridge/package/protocol versions, supervisor/app-server PIDs, random host nonce, live ownership generation, creation time, loopback/control URLs, owner mode, installation/database identities, transport, capability-token mode, and initialized app-server user agent. The capability token remains in a separate owner-only file. Authenticated health and MCP lease registration must echo/verify the same capability so stale metadata, PID reuse, a wrong local process, and version skew cannot be mistaken for the bridge.
+
+The startup lock is an exclusive operating-system file creation or an equivalently atomic local primitive under the bridge data directory. It contains a diagnostic nonce, launcher PID, and timestamp but grants no authority by itself. A waiter must not delete a lock or kill a process solely from PID metadata. Corrupt or stale artifacts may be quarantined only after bounded authenticated checks fail and the lock's exclusive ownership rules permit recovery. A version mismatch never starts a second owner; it returns `HOST_INCOMPATIBLE` and requires an explicit operator restart or upgrade.
+
+The bridge host is a detached per-user singleton whose lifetime is independent of any MCP pipe. It survives individual task, subagent, and Codex client exits and remains running until an authenticated operator stop/restart, user logout/operating-system termination, uninstall cleanup, or a future explicitly configured idle policy. The initial plugin release has no automatic idle shutdown. Upgrade is fail closed: new MCP clients refuse an incompatible host rather than attempting a live handoff.
+
+All runtime files live under the trusted bridge data directory with owner-only permissions where the platform supports them. Transport is authenticated and loopback-only by default. Launch arguments and logs exclude capability tokens and message bodies. The executable path, package version, launch reason, PID, nonce, timestamps, lock waits, readiness duration, and recovery outcome are observable; sensitive paths and credentials are redacted.
+
+The plugin may use a bounded synchronous `SessionStart` health check only if it invokes the same idempotent bootstrap path. It must not run an asynchronous hook or use a hook process as the daemon. MCP startup remains the required bootstrap path, so correctness does not depend on hook timing.
+
+Product surfaces are intentionally distinct:
+
+- The open-source Codex CLI/app-server and custom clients are supported only when they connect to the bridge-managed authoritative owner.
+- Plugin/MCP discovery in the official desktop or IDE does not transfer ownership of their private app-server processes. A desktop- or IDE-owned thread is not a participating delivery target unless that product exposes a documented authenticated adapter to its live owner.
+- On a build without such an adapter, tool discovery may be tested, but delivery to the privately owned thread must return `UNSUPPORTED_THREAD_OWNER`. Starting a second app-server against its persisted history is forbidden.
+- Binary patching, UI automation, log scraping, and direct modification of Codex session/rollout databases are not supported integration mechanisms.
+
+The plugin supplies tool ingress and process bootstrap; it is not a coordinator. Host startup performs no agent work. Every new delivery continues to originate from an explicit tool call or from recovery of a previously accepted durable request.
+
+The stock CLI connection workflow is one command: `codex-inter-agent connect`. It first obtains the authenticated singleton, then launches `codex --remote <loopback-url> --remote-auth-token-env <child-only-env-name>`. The bearer value is never placed in arguments or printed. Resume/fork arguments may be forwarded after `--`.
+
+Registry ownership is stable across ordinary host restarts and is stored per agent generation as owner mode plus installation, database, and bridge-protocol identity. New registrations through the owner are bound automatically. Migrated generations remain unverified until an operator closes independent owners and performs confirmed idle-only adoption. Before any lease or thread RPC, the recipient binding must match the current authority; `thread/resume` and reconciliation must return the exact registered thread ID. Otherwise delivery terminates as `UNSUPPORTED_THREAD_OWNER` without `turn/start`.
+
+This binding is deliberately conservative but cannot detect a private desktop/IDE owner opened later because the pinned public protocol exposes no exclusive per-thread owner claim. The missing authenticated claim/status/start contract is an upstream requirement; binary patching, UI automation, log scraping, and internal history mutation remain forbidden.
 
 ---
 

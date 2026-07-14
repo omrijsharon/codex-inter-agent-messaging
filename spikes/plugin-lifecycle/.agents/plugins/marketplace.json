@@ -1,0 +1,20 @@
+{
+  "name": "inter-agent-probe",
+  "interface": {
+    "displayName": "Inter Agent Probe"
+  },
+  "plugins": [
+    {
+      "name": "codex-inter-agent-lifecycle-probe",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-inter-agent-lifecycle-probe"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "DeveloperTools"
+    }
+  ]
+}

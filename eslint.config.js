@@ -23,7 +23,7 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
     files: ["scripts/**/*.mjs"],
     languageOptions: {
-      globals: { process: "readonly" },
+      globals: { clearTimeout: "readonly", process: "readonly", setTimeout: "readonly" },
       parserOptions: { projectService: false },
     },
   },

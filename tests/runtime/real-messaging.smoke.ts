@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { ensureHostRunning, stopManagedHost } from "../../src/app_server/bootstrap.js";
 import { AppServerClient } from "../../src/app_server/client.js";
-import { SharedAppServerHost } from "../../src/app_server/host.js";
 import { loadConfig } from "../../src/config/index.js";
-import { createLogger } from "../../src/logging/logger.js";
 import { MessagingService } from "../../src/messaging/service.js";
 import { BridgeDatabase } from "../../src/store/database.js";
 import {
@@ -16,15 +15,10 @@ import {
 
 const directory = await mkdtemp(path.join(os.tmpdir(), "codex-inter-agent-real-m8-"));
 const config = loadConfig({ BRIDGE_DATA_DIRECTORY: directory }, os.homedir());
-const host = new SharedAppServerHost({
-  appServer: config.appServer,
-  logger: createLogger("error", () => undefined),
-  workingDirectory: directory,
-});
 let client: AppServerClient | null = null;
 let store: BridgeDatabase | null = null;
 try {
-  const connection = await host.start();
+  const connection = await ensureHostRunning(config);
   client = new AppServerClient({
     url: connection.url,
     authToken: connection.authToken,
@@ -32,7 +26,12 @@ try {
   });
   await client.connect();
   store = new BridgeDatabase(path.join(directory, "bridge.sqlite3"));
-  const agents = new AgentRepository(store);
+  const agents = new AgentRepository(store, {
+    ownerMode: connection.descriptor.ownerMode,
+    installationId: connection.descriptor.installationId,
+    databaseId: connection.descriptor.databaseId,
+    protocolVersion: connection.descriptor.protocolVersion,
+  });
   agents.register({
     agentId: "inter-agent",
     displayName: "inter-agent",
@@ -79,6 +78,6 @@ try {
 } finally {
   await client?.close();
   store?.close();
-  await host.stop();
+  await stopManagedHost(config, false).catch(() => undefined);
   await rm(directory, { recursive: true, force: true });
 }

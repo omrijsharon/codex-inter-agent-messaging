@@ -1,4 +1,4 @@
-export const STORE_SCHEMA_VERSION = 5 as const;
+export const STORE_SCHEMA_VERSION = 6 as const;
 export { BridgeDatabase } from "./database.js";
 export {
   AclRepository,
@@ -19,6 +19,8 @@ export type {
 export { assertMessageTransition, MESSAGE_TRANSITIONS } from "./models.js";
 export type {
   AgentRecord,
+  AgentOwnerBinding,
+  AgentOwnerMode,
   AgentStatus,
   MessageKind,
   MessageRecord,

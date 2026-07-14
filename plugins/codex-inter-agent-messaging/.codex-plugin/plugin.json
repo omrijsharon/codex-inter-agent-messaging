@@ -1,0 +1,35 @@
+{
+  "name": "codex-inter-agent-messaging",
+  "version": "0.4.0",
+  "description": "On-demand messaging between registered Codex agents through one authenticated bridge owner.",
+  "author": {
+    "name": "Codex Inter-Agent Messaging maintainers",
+    "url": "https://github.com/omrijsharon/codex-inter-agent-messaging"
+  },
+  "homepage": "https://github.com/omrijsharon/codex-inter-agent-messaging#readme",
+  "repository": "https://github.com/omrijsharon/codex-inter-agent-messaging",
+  "license": "UNLICENSED",
+  "keywords": [
+    "codex",
+    "mcp",
+    "agents",
+    "messaging"
+  ],
+  "interface": {
+    "displayName": "Codex Inter Agent Messaging",
+    "shortDescription": "Send explicit requests to registered Codex peers",
+    "longDescription": "Adds caller-bound MCP tools for synchronous, asynchronous, inbox, and group messaging through a race-safe per-user bridge host.",
+    "developerName": "Codex Inter-Agent Messaging maintainers",
+    "category": "DeveloperTools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "List the Codex agents I can message.",
+      "Ask a registered Codex agent for help."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

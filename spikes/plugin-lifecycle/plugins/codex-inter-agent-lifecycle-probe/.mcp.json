@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "inter-agent-lifecycle-probe": {
+      "command": "node",
+      "args": ["./probe.mjs"],
+      "cwd": "."
+    }
+  }
+}

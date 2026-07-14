@@ -4,6 +4,19 @@ import { z } from "zod";
 import type { AsyncMessagingService } from "./async_service.js";
 import { MessagingError } from "./service.js";
 
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+const WRITE = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
+} as const;
+
 function snake(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(snake);
   if (value === null || typeof value !== "object") return value;
@@ -79,6 +92,7 @@ export function registerAsyncMessagingTools(
         idempotency_key: z.string().min(1).max(256).optional(),
       }),
       outputSchema: statusSchema,
+      annotations: WRITE,
     },
     (input) => {
       try {
@@ -110,6 +124,7 @@ export function registerAsyncMessagingTools(
         messages: z.array(inboxItemSchema),
         next_cursor: z.string().optional(),
       }),
+      annotations: WRITE,
     },
     (input) => {
       try {
@@ -135,6 +150,7 @@ export function registerAsyncMessagingTools(
         idempotency_key: z.string().min(1).max(256).optional(),
       }),
       outputSchema: statusSchema,
+      annotations: WRITE,
     },
     (input) => {
       try {
@@ -159,6 +175,7 @@ export function registerAsyncMessagingTools(
         z.strictObject({ status: z.literal("unknown"), message_id: z.string() }),
         statusSchema,
       ]),
+      annotations: READ_ONLY,
     },
     (input) => result(service.status(input.message_id)),
   );
@@ -168,6 +185,7 @@ export function registerAsyncMessagingTools(
       description: "Explicitly acknowledge one delivered inbox message.",
       inputSchema: z.strictObject({ message_id: z.string().min(1) }),
       outputSchema: inboxItemSchema,
+      annotations: WRITE,
     },
     (input) => {
       try {

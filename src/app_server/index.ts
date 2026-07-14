@@ -5,7 +5,15 @@ export interface ProtocolManifest {
 }
 
 export { SharedAppServerHost } from "./host.js";
-export { resolveSharedOwnerUrl, SHARED_OWNER_CONNECTION_FILE } from "./runtime.js";
+export { SHARED_OWNER_CONNECTION_FILE } from "./runtime.js";
+export {
+  ensureHostRunning,
+  getHostStatus,
+  HostBootstrapError,
+  restartManagedHost,
+  stopManagedHost,
+} from "./bootstrap.js";
+export type { HostBootstrapErrorCode, HostStatus, ManagedHostConnection } from "./bootstrap.js";
 export type { SharedAppServerConnection, SharedAppServerHostOptions } from "./host.js";
 export { JsonLineDecoder, ProtocolFrameError } from "./json_line_decoder.js";
 export type { ProtocolFrameErrorCode } from "./json_line_decoder.js";

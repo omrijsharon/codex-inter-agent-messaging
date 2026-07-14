@@ -1,35 +1,44 @@
-# Installation and Existing-Thread Setup
+# Installation and existing-thread setup
 
-## Prerequisites
+## Supported baseline
 
-- Windows with Node.js 22.11+ and npm 10.9+
-- Codex CLI `0.144.0-alpha.4` for the pinned v0.3 build
-- Participating thread histories that can be resumed by the bridge-managed app-server
+- Windows, Node.js 22.11+, npm 10.9+, and Codex CLI/app-server `0.144.0-alpha.4`
+- A source checkout or reviewed release directory containing the repository marketplace
+- Participating recipient histories that are closed in independently owned Codex desktop/IDE processes
 
-The MVP does not attach to an independently owned desktop/app-server session. Stop the independent owner before making that history participate. Every participating client and caller-bound MCP process must use the one shared owner while messaging is enabled.
+The plugin is transport tooling, not a coordinator. Messages are sent only when an agent explicitly calls a messaging tool.
 
-## Install
+## Build and install the plugin
 
-From a source checkout:
+From the repository root:
 
 ```powershell
 npm.cmd ci
-npm.cmd run verify:all
-npm.cmd pack
-npm.cmd install --global .\codex-inter-agent-messaging-0.3.0.tgz
+npm.cmd run plugin:build
+npm.cmd run plugin:validate
+codex plugin marketplace add .
+codex plugin add codex-inter-agent-messaging@codex-inter-agent-local
 ```
 
-Start the transport owner in a dedicated terminal. It does not coordinate or initiate work.
+The build creates a relocatable production runtime under the plugin. Open a new Codex task after installation. The first plugin MCP process starts one hidden, detached, authenticated bridge host; later tasks reuse it. Do not run `codex-inter-agent-host` manually during normal operation.
+
+## Bind a trusted caller identity
+
+Set `BRIDGE_AGENT_ID` in the trusted Codex project/profile environment before opening each participating task. It must be one stable registered agent ID. Never put sender identity in a prompt or tool argument. All processes that should share the bridge must use the same `BRIDGE_DATA_DIRECTORY`; omit it to use the protected per-user default.
+
+For example, in a trusted launch profile/environment:
 
 ```powershell
-codex-inter-agent-host
+$env:BRIDGE_AGENT_ID = "inter-agent"
+$env:BRIDGE_DATA_DIRECTORY = "$HOME\.codex-inter-agent"
+codex-inter-agent connect
 ```
 
-The default dynamic loopback endpoint is written to `%USERPROFILE%\.codex-inter-agent\connection.json`; the capability token is stored separately in `app-server.token`. Keep both under the owning OS account. A fixed endpoint may instead be configured with `BRIDGE_APP_SERVER_LISTEN_URL=ws://127.0.0.1:45123`.
+`connect` starts/reuses the owner and launches the stock Codex TUI with `--remote` while passing the bearer token through a child-only environment variable. Arguments can follow `--`, for example `codex-inter-agent connect -- resume <thread-id>`.
 
-## Register existing histories
+## Register histories
 
-Use exact thread IDs. Titles are only a discovery aid.
+Use exact thread IDs; titles are discovery aids only:
 
 ```powershell
 codex-inter-agent discover "Prepare inter-agent thread"
@@ -39,32 +48,35 @@ codex-inter-agent list
 codex-inter-agent health
 ```
 
-Registration verifies the exact history through app-server. It does not recreate, fork, inject into, or edit the history.
+Registration verifies and resumes the exact history through the shared owner. It does not fork, inject into, or edit history files.
 
-## Enable the MCP tool per participating caller
+Schema-5 and older registrations migrate as unverified. After closing that thread in every independently owned Codex app, adopt the unchanged generation through the shared owner:
 
-Each participating caller needs a trusted, distinct process configuration. Do not expose `BRIDGE_AGENT_ID` as a model argument. Configure the MCP server in the caller's trusted Codex project/profile configuration, using the stable ID registered above:
-
-```toml
-[mcp_servers.codex_inter_agent]
-command = "codex-inter-agent-mcp"
-
-[mcp_servers.codex_inter_agent.env]
-BRIDGE_AGENT_ID = "inter-agent"
-BRIDGE_DATA_DIRECTORY = "C:\\Users\\you\\.codex-inter-agent"
+```powershell
+codex-inter-agent adopt-owner <agent-id> --generation <n> --confirm-agent-id <agent-id>
 ```
 
-Use a separate trusted project/profile entry with its own `BRIDGE_AGENT_ID` for every other caller. Refresh or restart that participating client after changing MCP configuration. A host surface that cannot bind a caller-specific MCP process or connect to the shared owner is unsupported by v0.3.
+Adoption is idle-only and preserves the stable ID, thread ID, generation, workspace, and transcript. The current protocol cannot detect a private desktop owner opened later, so participating target histories must continue to run through `connect`.
 
-## ACL policy
+## Verify first use
 
-The default missing-rule policy is `allow` for a simple trusted-local setup. For deny-by-default operation set `BRIDGE_ACL_DEFAULT_POLICY=deny` in every MCP process, then add explicit rules:
+Open a new caller task with its trusted `BRIDGE_AGENT_ID`, call `list_agents`, then call `ask_agent` using a stable recipient ID. If the call returns `pending`, poll the same message with `get_request_status`; do not create a second request merely to poll.
+
+For deny-by-default routing, configure `BRIDGE_ACL_DEFAULT_POLICY=deny`, then add explicit rules:
 
 ```powershell
 codex-inter-agent acl allow inter-agent prepare-inter-agent-thread
 codex-inter-agent acl list
 ```
 
-## Verify
+## Upgrade, disable, and uninstall
 
-Call `list_agents`, then `ask_agent` with a stable recipient ID. A long request may return `pending`; use `get_request_status` with the returned message ID. Never create another request merely to poll the first one.
+```powershell
+codex-inter-agent host status
+codex-inter-agent host stop
+codex plugin marketplace upgrade codex-inter-agent-local
+codex plugin remove codex-inter-agent-messaging
+codex plugin add codex-inter-agent-messaging@codex-inter-agent-local
+```
+
+The desktop plugin settings toggle can disable/re-enable the plugin; CLI removal/addition is the equivalent. For a complete uninstall, stop the host, remove the plugin, then remove the marketplace. Plugin removal does not delete the database, logs, installation identity, or capability token. Delete retained state only as a separate explicit operator decision after backup.

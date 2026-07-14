@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdminService, type ThreadVerifier } from "../../src/cli/admin_service.js";
-import { type CliRuntime, runCli } from "../../src/cli/main.js";
+import { type CliRuntime, type HostLifecycle, runCli } from "../../src/cli/main.js";
 import { BridgeDatabase } from "../../src/store/database.js";
 import { AclRepository, AgentRepository } from "../../src/store/repositories.js";
 import { GroupRepository } from "../../src/store/groups.js";
@@ -37,7 +37,12 @@ describe("administrative CLI", () => {
       const store = new BridgeDatabase(filename);
       return Promise.resolve({
         service: new AdminService(
-          new AgentRepository(store),
+          new AgentRepository(store, {
+            ownerMode: "bridge-managed",
+            installationId: "admin-test-installation",
+            databaseId: "admin-test-database",
+            protocolVersion: "1",
+          }),
           verifier,
           new AclRepository(store),
           new GroupRepository(store),
@@ -116,6 +121,7 @@ describe("administrative CLI", () => {
       ],
       factory,
     );
+    await runCli(["adopt-owner", "cfo", "--generation", "2", "--confirm-agent-id", "cfo"], factory);
     await runCli(["supersede", "cfo"], factory);
     await runCli(
       [
@@ -136,7 +142,13 @@ describe("administrative CLI", () => {
     await runCli(["acl", "list"], factory);
     await runCli(["acl", "deny", "cfo", "legal"], factory);
     await runCli(["acl", "remove", "cfo", "legal"], factory);
-    await runCli(["health"], factory);
+    const hostLifecycle: HostLifecycle = {
+      status: () => Promise.resolve({ state: "stopped" }),
+      start: () => Promise.reject(new Error("not used")),
+      stop: () => Promise.resolve({ status: "already-stopped" }),
+      restart: () => Promise.reject(new Error("not used")),
+    };
+    await runCli(["health"], factory, hostLifecycle);
     const backupPath = path.join(directory, "backups", "bridge.sqlite3");
     await runCli(["backup", "--output", backupPath], factory);
     expect((await stat(backupPath)).size).toBeGreaterThan(0);
@@ -168,7 +180,7 @@ describe("administrative CLI", () => {
     await runCli(["group", "delete", "reviewers"], factory);
     await runCli(["discover", "Finance"], factory);
 
-    expect(verified).toEqual(["thread_1", "missing", "thread_2", "thread_legal"]);
+    expect(verified).toEqual(["thread_1", "missing", "thread_2", "thread_2", "thread_legal"]);
     expect(output.mock.calls.flat().join("")).toContain("thread_discovered");
     expect(output.mock.calls.flat().join("")).toContain('"status": "healthy"');
     const finalStore = new BridgeDatabase(filename);

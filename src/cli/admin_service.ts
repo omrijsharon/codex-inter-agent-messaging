@@ -98,6 +98,24 @@ export class AdminService {
     );
   }
 
+  async adoptOwner(input: {
+    agentId: string;
+    expectedGeneration: number;
+    confirmation: string;
+  }): Promise<AgentRecord> {
+    if (input.confirmation !== input.agentId) {
+      throw new Error("owner adoption requires --confirm-agent-id matching the active agent ID");
+    }
+    const current = this.agents.get(input.agentId);
+    if (current.generation !== input.expectedGeneration)
+      throw new Error("agent generation changed");
+    const verified = await this.verifier.verify(current.activeThreadId);
+    if (verified.status !== "idle") {
+      throw new Error("thread must be idle before authoritative owner adoption");
+    }
+    return this.agents.bindCurrentOwner(input.agentId, input.expectedGeneration);
+  }
+
   discover(search: string): Promise<readonly { threadId: string; title: string | null }[]> {
     return this.verifier.discover(search);
   }

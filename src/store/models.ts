@@ -1,4 +1,12 @@
 export type AgentStatus = "active" | "paused" | "superseded" | "disabled";
+export type AgentOwnerMode = "bridge-managed" | "unverified";
+
+export interface AgentOwnerBinding {
+  readonly ownerMode: "bridge-managed";
+  readonly installationId: string;
+  readonly databaseId: string;
+  readonly protocolVersion: string;
+}
 export type MessageStatus =
   "queued" | "dispatching" | "running" | "completed" | "failed" | "dead_letter";
 export type MessageKind = "request" | "reply" | "notice";
@@ -11,6 +19,10 @@ export interface AgentRecord {
   readonly workspace: string;
   readonly acceptsMessages: boolean;
   readonly status: AgentStatus;
+  readonly ownerMode: AgentOwnerMode;
+  readonly ownerInstallationId: string | null;
+  readonly ownerDatabaseId: string | null;
+  readonly ownerProtocolVersion: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

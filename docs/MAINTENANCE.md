@@ -1,65 +1,66 @@
-# Maintenance and Compatibility
+# Maintenance and compatibility
 
 ## Supported baseline
 
-- Package release: `0.3.0`
-- Database schema: `5`
-- Codex CLI/app-server: exactly `0.144.0-alpha.4`, as recorded in `generated/codex/manifest.json`
-- Node.js: 22.11 or newer
-- npm: 10.9 or newer
-- Validated operating system: Windows
+- Package/plugin release: `0.4.0`
+- Database schema: `6`
+- Bridge owner protocol: `2`; signed descriptor schema: `3`
+- Codex CLI/app-server: exactly `0.144.0-alpha.4`, per `generated/codex/manifest.json`
+- Node.js 22.11+ and npm 10.9+
+- Release-validated OS: Windows
 
-Linux and macOS are not yet release-validated. The implementation uses portable Node.js and SQLite APIs, but host process lifecycle, permissions, path handling, and package entrypoints must pass the same clean-environment and real app-server smoke tests before either platform is declared supported.
+Linux and macOS are not release-validated. Portable Node/SQLite code is not sufficient: singleton process lifetime, permissions, native SQLite packaging, paths, and real app-server/plugin smoke must pass before support is claimed.
 
-Package/schema compatibility is:
+| Package line | Latest schema | Upgrade support                                           |
+| ------------ | ------------: | --------------------------------------------------------- |
+| v0.1.x       |             3 | Forward to v0.4/schema 6                                  |
+| v0.2.x       |             4 | Forward to v0.4/schema 6                                  |
+| v0.3.x       |             5 | Forward to v0.4/schema 6; registrations become unverified |
+| v0.4.x       |             6 | Current; owner protocol 2 and descriptor schema 3         |
 
-| Package line | Latest schema | Upgrade support          |
-| ------------ | ------------: | ------------------------ |
-| v0.1.x       |             3 | Forward to v0.3/schema 5 |
-| v0.2.x       |             4 | Forward to v0.3/schema 5 |
-| v0.3.x       |             5 | Current                  |
-
-The current binary applies missing migrations in order and rejects unknown future schema versions, changed migration names, and changed recorded migration checksums. There is no down-migration.
+Migrations are ordered, transactional, body-checksummed, and forward-only. Unknown future versions and changed recorded migration names/bodies are rejected.
 
 ## Known limitations
 
-- All participating clients and caller-bound MCP processes must use the one bridge-managed shared app-server owner.
-- Each stable caller identity requires a trusted MCP process configuration; identity is not a model argument.
-- The supported deployment is one trusted local OS user. Remote `wss:` transport is expert-only.
-- SQLite state is not encrypted at rest and audit events are not externally tamper-evident.
+- All participating recipient tasks must use the bridge-managed app-server owner. The stock CLI workflow is `codex-inter-agent connect`.
+- Official desktop/IDE private owners have no supported authenticated adapter on the pinned build. Plugin discovery alone does not make those histories safe targets.
+- The public protocol cannot detect a private owner opened after an operator adopts a history. This requires the upstream owner-claim API proposed in `UPSTREAM_OWNER_BINDING_PROPOSAL.md`.
+- `BRIDGE_AGENT_ID` is trusted project/profile configuration shared by a task tree; generic plugin MCP startup exposes no authenticated current thread ID or distinct subagent identity.
+- The supported deployment is one trusted local OS user. Remote `wss:` is expert-only.
+- SQLite is not encrypted at rest; audit events are not externally tamper-evident.
 - There is no human approval UI, multi-user administrator role, network metrics exporter, or automatic audit purge.
 - Context compaction is operator-driven. The bridge never silently forks, clears, edits, or rebinds a saturated thread.
-- Asynchronous recipient assistant output does not become an automatic reply. Every reply is an explicit tool-created edge.
-- Group synthesis is performed by the caller from explicit replies; the bridge does not choose or run a coordinator.
+- Async/group recipient output never creates a new messaging edge. Replies and caller-side synthesis remain explicit.
+- The detached singleton has no automatic idle shutdown in v0.4; authenticated lifecycle commands own stop/restart.
 
 ## Routine dependency update
 
-1. Create a working branch and record the current Node, npm, Codex, package, and schema versions.
-2. Update exact dependency versions and regenerate `package-lock.json` with the supported npm version.
-3. Run `npm.cmd ci`, `npm.cmd run verify:all`, `npm.cmd run test:coverage`, and `npm.cmd run smoke:package`.
-4. For transport, scheduling, or envelope changes, also run the real synchronous, asynchronous, and group smoke commands against disposable participating test threads (`smoke:group` is the explicit group alias for the combined async/group runtime scenario).
-5. Review the threat model, release notes, diagnostics, redaction tests, and packaged file list before release.
+1. Record Node, npm, Codex, package/plugin, schema, owner-protocol, and descriptor versions.
+2. Update exact dependencies and the npm lockfile with the supported npm version.
+3. Run `npm.cmd ci`, `npm.cmd run verify:all`, coverage, plugin build/validate/smoke, and package smoke.
+4. For transport/scheduling/ownership changes, run the bounded bootstrap matrix and real synchronous/async/group scenarios.
+5. Review the threat model, release notes, redaction, packaged contents, process cleanup, and native dependency provenance.
 
 ## Codex protocol update
 
 1. Install the intended Codex version and run `npm.cmd run schema:generate`.
-2. Review all generated changes, concentrating on initialize, thread status/read/resume/list, turn start/completion, item completion, approval, server-request, and dynamic-tool schemas.
-3. Update protocol adapters and fixtures. Never loosen validation merely to make drift checks pass.
-4. Run `npm.cmd run schema:check` and the complete verification suite.
-5. Run the authenticated shared-owner integration test and real synchronous/asynchronous smoke tests.
-6. Record the new exact version and generated digest in release documentation. Compatibility is exact until this procedure passes.
+2. Review initialize, thread status/read/resume/list, turn start/completion, item completion, approval, server-request, and remote transport changes.
+3. Update adapters/fixtures without weakening validation.
+4. Run schema drift and the complete clean gate.
+5. Run authenticated shared-owner, remote CLI, plugin, and real-thread tests.
+6. Record the exact Codex version and generated digest. Compatibility remains exact until this procedure passes.
 
 ## Database migration, restore, and rollback
 
-Migrations are append-only, ordered, transactional, and body-checksummed. Tests verify in-place upgrades from released schemas 1, 3, and 4 to schema 5, including preservation of legacy agent identity. Before upgrading production state, stop caller MCP processes, use `codex-inter-agent backup` to a new path, record the matching binary and Codex version, then upgrade and run `codex-inter-agent health`.
+Tests cover schema 1, 3, 4, and 5 upgrades to schema 6. Schema 6 preserves legacy identity/thread/generation/workspace data but marks old registrations `unverified`. Close independent owners and run confirmed idle-only `adopt-owner` before delivery.
 
-Periodically restore a hot backup to a separate temporary data directory with the matching package and run `health` against the shared owner. If rollback is required after a schema change, stop all processes and restore the complete pre-upgrade hot backup with its matching package. Never hand-edit `schema_migrations`, copy only a live SQLite main file, or run two package schema generations against the same database.
+Before upgrade, stop caller MCP clients and the host, create a hot backup at a new path, and record matching package/plugin/Codex versions. Upgrade one synchronized release, start it, run `health`, and adopt only intended histories. To roll back, stop all processes and restore the complete pre-upgrade backup with its matching binary/plugin. Never edit `schema_migrations`, copy only a live SQLite main file, or mix package generations against one database.
 
 ## Release checklist
 
-1. Confirm `package.json`, `package-lock.json`, `src/version.ts`, and all entrypoint versions match.
-2. Start from `npm.cmd ci`; run format check, lint, typecheck, all unit/integration tests, coverage, schema drift, and production build.
-3. Run the package smoke test and inspect its generated tarball name/version and three installed entrypoints.
-4. Run bounded real-thread smoke tests when the release changes runtime behavior.
-5. Update `docs/RELEASE_NOTES.md`, `RELEASES.md`, and the plan evidence with the real completion time.
-6. Publish or tag only through an explicit operator action; repository validation does not imply remote publication.
+1. Synchronize package, lockfile, central version, plugin manifest/runtime, owner protocol, descriptor schema, store schema, MCP/app-server metadata, and release records.
+2. From `npm.cmd ci`, run format, lint, strict types, unit/integration/security/recovery/migration tests, coverage, schema drift, and production build.
+3. Build/validate the plugin; inspect relocatable runtime, forbidden-state/secret scan, clean-install smoke, marketplace metadata, and native dependency. Run package smoke.
+4. Run three clean auto-starts, reuse, concurrent MCP start, crash recovery, ownership rejection, remote CLI connection, and every claimed real delivery surface.
+5. Verify logs, processes, handles, descriptors, locks, and temporary files after every runtime scenario.
+6. Update release notes, compatibility/rollback, handoff, evidence, and the plan ledger. Publication/tagging remains an explicit operator action.

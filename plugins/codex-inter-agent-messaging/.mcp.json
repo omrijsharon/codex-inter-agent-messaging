@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "codex-inter-agent-messaging": {
+      "command": "node",
+      "args": ["./runtime/dist/messaging/mcp_server.js"],
+      "cwd": ".",
+      "env_vars": [
+        "BRIDGE_AGENT_ID",
+        "BRIDGE_DATA_DIRECTORY",
+        "BRIDGE_DATABASE_PATH",
+        "BRIDGE_ACL_DEFAULT_POLICY",
+        "BRIDGE_LOG_LEVEL"
+      ],
+      "startup_timeout_sec": 45,
+      "tool_timeout_sec": 300,
+      "required": false,
+      "default_tools_approval_mode": "writes"
+    }
+  }
+}

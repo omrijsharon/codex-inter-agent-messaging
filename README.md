@@ -40,6 +40,9 @@ npm.cmd run schema:check        # detect Codex version or generated-file drift
 npm.cmd run verify              # format, lint, types, unit tests, protocol drift
 npm.cmd run verify:all          # verify plus integration tests and production build
 npm.cmd run smoke:package       # build, pack, clean-install, and exercise release commands
+npm.cmd run plugin:build        # assemble the relocatable production plugin runtime
+npm.cmd run plugin:validate     # validate manifest, marketplace, contents, and secret hygiene
+npm.cmd run smoke:plugin        # clean-copy MCP/bootstrap smoke from a Unicode path
 npm.cmd run smoke:messaging     # bounded real synchronous participating-thread exchange
 npm.cmd run smoke:async         # bounded real asynchronous delivery plus group coverage
 npm.cmd run smoke:group         # explicit alias for the combined async/group real smoke
@@ -86,4 +89,4 @@ Unencrypted WebSocket configuration is rejected unless it is loopback. Default s
 
 ## Current implementation boundary
 
-The v0.3.0 implementation completes the planned synchronous, asynchronous, group, recovery, security, administrative, and packaging milestones. Arbitrary independently owned desktop sessions remain intentionally unsupported: an existing history can participate only after its client and MCP process use the bridge-managed shared app-server. Independent app-server ownership was proven to corrupt turn attribution and is forbidden.
+The v0.4.0 implementation adds the installable plugin, automatic singleton bootstrap, stock remote-CLI wrapper, and schema-6 owner binding to the synchronous, asynchronous, group, recovery, security, and administration features. Arbitrary independently owned desktop/IDE histories remain intentionally unsupported targets: supported recipient tasks use `codex-inter-agent connect`, and unbound/foreign generations fail with `UNSUPPORTED_THREAD_OWNER`.

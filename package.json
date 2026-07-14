@@ -1,6 +1,6 @@
 {
   "name": "codex-inter-agent-messaging",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "On-demand messaging between participating Codex threads through a shared app-server.",
   "type": "module",
@@ -38,6 +38,10 @@
     "smoke:async": "tsx tests/runtime/real-async.smoke.ts",
     "smoke:group": "tsx tests/runtime/real-async.smoke.ts",
     "smoke:package": "node scripts/smoke-package.mjs",
+    "plugin:build": "node scripts/build-plugin.mjs",
+    "plugin:validate": "node scripts/validate-plugin.mjs",
+    "smoke:plugin": "node scripts/smoke-plugin.mjs",
+    "smoke:stability": "tsx tests/runtime/bootstrap-stability.smoke.ts",
     "verify": "run-s format:check lint typecheck test schema:check",
     "verify:all": "run-s verify test:integration build"
   },

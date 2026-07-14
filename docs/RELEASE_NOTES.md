@@ -1,8 +1,25 @@
 # Release Notes
 
+## v0.4.0 — Automatic-bootstrap Codex plugin
+
+- Adds an installable repository-marketplace Codex plugin with a relocatable production MCP runtime and 13 strict caller-bound tools.
+- Starts/reuses one detached authenticated per-user host from MCP/CLI, with atomic locking, signed schema-3 descriptors, separate capability tokens, authenticated health/control, client leases, safe stop/restart, and stale/crash recovery.
+- Adds `codex-inter-agent connect`, using stock Codex remote TUI support while keeping bearer tokens out of process arguments and shell history.
+- Adds bridge owner protocol 2, live capability negotiation, schema-6 per-generation ownership bindings, idle-only owner adoption, exact thread identity checks, and terminal `UNSUPPORTED_THREAD_OWNER` rejection before delivery.
+- Adds read/write MCP annotations, plugin lifecycle/security documentation, clean-install Unicode-path smoke, release secret/state scanning, multi-task/subagent acceptance, and bounded real automatic-topology exchanges.
+
+Compatibility and limitations:
+
+- Validated on Windows with Codex CLI/app-server `0.144.0-alpha.4`, desktop `26.707.3748.0`, Node `22.11.0`, npm `10.9.0`, and MCP SDK `1.29.0`.
+- v0.3/schema-5 data upgrades in place, but migrated registrations are unverified until confirmed adoption through the shared owner.
+- Official desktop/IDE private histories remain unsupported delivery targets because the pinned public protocol has no authenticated exclusive owner claim. No binary patch or UI automation is included.
+- Roll back only by stopping all bridge/plugin processes and restoring the complete pre-upgrade schema-5 backup with v0.3; there is no down-migration.
+
+See [`evidence/authoritative-owner-integration.md`](evidence/authoritative-owner-integration.md), [`PLUGIN_SECURITY.md`](PLUGIN_SECURITY.md), and [`UPSTREAM_OWNER_BINDING_PROPOSAL.md`](UPSTREAM_OWNER_BINDING_PROPOSAL.md).
+
 ## v0.1.0 — MVP
 
-Current status: v0.3.0 locally validated on Windows with Codex CLI `0.144.0-alpha.4`.
+Current status: v0.4.0 locally validated on Windows with Codex CLI `0.144.0-alpha.4`.
 
 Highlights:
 

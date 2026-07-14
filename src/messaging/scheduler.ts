@@ -116,6 +116,14 @@ export class DeliveryScheduler {
           "recipient generation is no longer active",
         );
       }
+      if (!this.#options.agents.isOwnedByCurrentHost(recipient)) {
+        return this.#failTerminal(
+          record,
+          messageId,
+          "UNSUPPORTED_THREAD_OWNER",
+          "recipient is not bound to this bridge-managed app-server installation",
+        );
+      }
       const head = this.#options.messages.queueHead(recipient.agentId, recipient.generation);
       if (head?.messageId !== messageId) {
         await this.#options.sleep(this.#options.config.busyPollMs);
@@ -159,6 +167,12 @@ export class DeliveryScheduler {
 
         const resumed = await this.#options.appServer.resumeThread(recipient.activeThreadId);
         const thread = isJsonObject(resumed.thread) ? resumed.thread : null;
+        if (thread?.id !== recipient.activeThreadId) {
+          throw Object.assign(
+            new Error("recipient is not visible through the authoritative app-server owner"),
+            { code: "UNSUPPORTED_THREAD_OWNER" },
+          );
+        }
         const liveStatus = isJsonObject(thread?.status) ? thread.status.type : null;
         if (liveStatus !== "idle") {
           throw Object.assign(new Error("recipient has an active external turn"), {
@@ -335,7 +349,13 @@ export class DeliveryScheduler {
   async #reconcile(record: MessageRecord, recipient: AgentRecord): Promise<Reconciliation> {
     const response = await this.#options.appServer.readThread(recipient.activeThreadId, true);
     const thread = isJsonObject(response.thread) ? response.thread : null;
-    if (!thread || !Array.isArray(thread.turns)) return "not_found";
+    if (thread?.id !== recipient.activeThreadId) {
+      throw Object.assign(
+        new Error("recipient is not readable through the authoritative app-server owner"),
+        { code: "UNSUPPORTED_THREAD_OWNER" },
+      );
+    }
+    if (!Array.isArray(thread.turns)) return "not_found";
     for (const value of thread.turns) {
       if (!isJsonObject(value) || !Array.isArray(value.items)) continue;
       const items = value.items as unknown[];

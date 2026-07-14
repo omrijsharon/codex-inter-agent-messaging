@@ -88,7 +88,12 @@ export class MessagingService {
   listAgents(): AgentRecord[] {
     return this.#options.agents
       .list()
-      .filter((agent) => agent.status === "active" && agent.acceptsMessages)
+      .filter(
+        (agent) =>
+          agent.status === "active" &&
+          agent.acceptsMessages &&
+          this.#options.agents.isOwnedByCurrentHost(agent),
+      )
       .map((agent) => ({ ...agent, workspace: "[REDACTED]" }));
   }
 

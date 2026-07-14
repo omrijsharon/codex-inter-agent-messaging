@@ -26,7 +26,12 @@ async function setup(replyDelayMs = 0, recipientMemoryReply = "ANSWER") {
     store.close();
     return Promise.resolve();
   });
-  const agents = new AgentRepository(store);
+  const agents = new AgentRepository(store, {
+    ownerMode: "bridge-managed",
+    installationId: "test-installation",
+    databaseId: "test-database",
+    protocolVersion: "1",
+  });
   agents.register({
     agentId: "sender",
     displayName: "Sender",
@@ -48,9 +53,9 @@ async function setup(replyDelayMs = 0, recipientMemoryReply = "ANSWER") {
   let envelope = "";
   let startCount = 0;
   const fake = {
-    resumeThread: () =>
-      Promise.resolve({ thread: { id: "thread_recipient", status: { type: "idle" } } }),
-    startTurn: (_threadId: string, text: string) => {
+    resumeThread: (threadId: string) =>
+      Promise.resolve({ thread: { id: threadId, status: { type: "idle" } } }),
+    startTurn: (threadId: string, text: string) => {
       startCount += 1;
       envelope = text;
       return Promise.resolve({
@@ -59,7 +64,7 @@ async function setup(replyDelayMs = 0, recipientMemoryReply = "ANSWER") {
           setTimeout(
             () =>
               resolve({
-                threadId: "thread_recipient",
+                threadId,
                 turnId: "turn_1",
                 status: "completed",
                 turn: { id: "turn_1", status: "completed" },
@@ -108,6 +113,19 @@ async function setup(replyDelayMs = 0, recipientMemoryReply = "ANSWER") {
 }
 
 describe("MessagingService", () => {
+  it("does not advertise unbound or foreign-owner recipients", async () => {
+    const context = await setup();
+    context.store.database
+      .prepare(
+        "UPDATE agents SET owner_mode = 'unverified', owner_installation_id = NULL, owner_database_id = NULL, owner_protocol_version = NULL WHERE agent_id = 'other'",
+      )
+      .run();
+    expect(context.service.listAgents().map((agent) => agent.agentId)).toEqual([
+      "recipient",
+      "sender",
+    ]);
+  });
+
   it("authenticates sender context, persists delivery, and returns only the final reply", async () => {
     const context = await setup();
     const result = await context.service.ask({ recipient: "recipient", message: "question" });

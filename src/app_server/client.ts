@@ -68,6 +68,7 @@ export class AppServerClient extends EventEmitter {
   #socket: WebSocket | null = null;
   #writer: SerializedJsonWriter | null = null;
   #state: "disconnected" | "connecting" | "handshaking" | "ready" | "closing" = "disconnected";
+  #serverIdentity: { userAgent: string; platformFamily: string; platformOs: string } | null = null;
 
   constructor(options: AppServerClientOptions) {
     super();
@@ -81,6 +82,14 @@ export class AppServerClient extends EventEmitter {
 
   get ready(): boolean {
     return this.#state === "ready";
+  }
+
+  get serverIdentity(): Readonly<{
+    userAgent: string;
+    platformFamily: string;
+    platformOs: string;
+  }> | null {
+    return this.#serverIdentity;
   }
 
   async connect(): Promise<void> {
@@ -279,6 +288,11 @@ export class AppServerClient extends EventEmitter {
         "initialize response is missing installed-schema capability fields",
       );
     }
+    this.#serverIdentity = {
+      userAgent: initialized.userAgent,
+      platformFamily: initialized.platformFamily,
+      platformOs: initialized.platformOs,
+    };
     await this.notify("initialized");
     this.#state = "ready";
   }

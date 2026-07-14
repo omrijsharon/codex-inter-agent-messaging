@@ -1,0 +1,16 @@
+{
+  "name": "codex-inter-agent-messaging",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0",
+    "npm": ">=10.9.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "better-sqlite3": "12.11.1",
+    "ws": "8.21.0",
+    "zod": "4.4.3"
+  }
+}

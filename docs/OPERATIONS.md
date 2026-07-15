@@ -67,7 +67,7 @@ Plugin disable/uninstall prevents future MCP launches but intentionally retains 
 
 ## Codex upgrades
 
-The package pins generated protocol artifacts to Codex `0.144.0-alpha.4`. After changing Codex:
+The package pins generated protocol artifacts to Codex `0.144.2`. After changing Codex:
 
 ```powershell
 npm.cmd ci

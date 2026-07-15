@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { chmod, mkdir, open, readFile } from "node:fs/promises";
+import { chmod, link, mkdir, open, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import type { BridgeConfig } from "../config/index.js";
 
@@ -18,19 +18,28 @@ export async function resolveRuntimeIdentity(config: BridgeConfig): Promise<Runt
   await mkdir(config.dataDirectory, { recursive: true, mode: 0o700 });
   await chmod(config.dataDirectory, 0o700).catch(() => undefined);
   const identityPath = path.join(config.dataDirectory, INSTALLATION_ID_FILE);
-  let installationId: string;
+  const candidate = randomUUID();
+  const temporaryPath = path.join(
+    config.dataDirectory,
+    `.${INSTALLATION_ID_FILE}.${candidate}.tmp`,
+  );
+  let installationId: string = candidate;
   try {
-    const handle = await open(identityPath, "wx", 0o600);
-    installationId = randomUUID();
+    const handle = await open(temporaryPath, "wx", 0o600);
     try {
       await handle.writeFile(`${installationId}\n`, "utf8");
       await handle.sync();
     } finally {
       await handle.close();
     }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-    installationId = (await readFile(identityPath, "utf8")).trim();
+    try {
+      await link(temporaryPath, identityPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      installationId = (await readFile(identityPath, "utf8")).trim();
+    }
+  } finally {
+    await rm(temporaryPath, { force: true }).catch(() => undefined);
   }
   if (!validInstallationId(installationId)) {
     throw new Error("bridge installation identity is invalid");

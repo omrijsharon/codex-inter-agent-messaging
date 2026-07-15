@@ -2,13 +2,41 @@
 
 ## Supported baseline
 
-- Windows, Node.js 22.11+, npm 10.9+, and Codex CLI/app-server `0.144.0-alpha.4`
+- Windows, Node.js 22.11+, npm 10.9+, and Codex CLI/app-server `0.144.2`
 - A source checkout or reviewed release directory containing the repository marketplace
 - Participating recipient histories that are closed in independently owned Codex desktop/IDE processes
 
 The plugin is transport tooling, not a coordinator. Messages are sent only when an agent explicitly calls a messaging tool.
 
-## Build and install the plugin
+## One-click Windows installation
+
+After downloading or cloning the repository, review the source and double-click `INSTALL.cmd` in the repository root. The console stays open and reports the failed step if installation cannot finish. Administrator privileges are not normally required; Node.js/npm must have a writable current-user global prefix.
+
+The wizard performs these bounded actions:
+
+1. Checks Node.js 22.11+, npm 10.9+, and the Codex plugin command surface.
+2. Runs the locked dependency install, production/plugin build, and plugin validation.
+3. Installs the companion `codex-inter-agent` CLI into npm's current-user global prefix.
+4. Registers this repository as marketplace `codex-inter-agent-local`.
+5. Installs or refreshes `codex-inter-agent-messaging@codex-inter-agent-local` and verifies that it is enabled.
+
+It does not set `BRIDGE_AGENT_ID`, register or replace agents, stop a running host, start a delivery, or modify Codex histories. Rerunning it from the same repository is safe. Keep the downloaded repository at the same location for future refreshes; the installed plugin is cached, but its local marketplace remains associated with this repository path.
+
+To check prerequisites and view the exact command plan without changing anything:
+
+```powershell
+.\INSTALL.cmd -DryRun
+```
+
+For machine-readable diagnostics without writes:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-plugin.ps1 -DryRun -Json
+```
+
+After a successful install, completely restart Codex or open a new task. Existing active tasks do not gain newly installed MCP tools mid-session.
+
+## Manual installation
 
 From the repository root:
 
@@ -16,6 +44,7 @@ From the repository root:
 npm.cmd ci
 npm.cmd run plugin:build
 npm.cmd run plugin:validate
+npm.cmd install --global . --no-audit --no-fund
 codex plugin marketplace add .
 codex plugin add codex-inter-agent-messaging@codex-inter-agent-local
 ```
@@ -71,12 +100,35 @@ codex-inter-agent acl list
 
 ## Upgrade, disable, and uninstall
 
+To refresh from an updated checkout at the same path, double-click `INSTALL.cmd` again. The wizard rebuilds from the lockfile and uses Codex's idempotent marketplace/plugin installation. It never stops a running host; if the new plugin reports `HOST_INCOMPATIBLE`, finish active deliveries and perform an explicit host restart.
+
+If the repository moved, the wizard fails closed when `codex-inter-agent-local` still points at the old location. Remove only that known marketplace after verifying its path, then rerun the installer from the new location:
+
+```powershell
+codex plugin marketplace list
+codex plugin marketplace remove codex-inter-agent-local
+.\INSTALL.cmd
+```
+
+Manual refresh or disable/re-enable:
+
 ```powershell
 codex-inter-agent host status
 codex-inter-agent host stop
-codex plugin marketplace upgrade codex-inter-agent-local
-codex plugin remove codex-inter-agent-messaging
+codex plugin remove codex-inter-agent-messaging@codex-inter-agent-local
 codex plugin add codex-inter-agent-messaging@codex-inter-agent-local
 ```
 
-The desktop plugin settings toggle can disable/re-enable the plugin; CLI removal/addition is the equivalent. For a complete uninstall, stop the host, remove the plugin, then remove the marketplace. Plugin removal does not delete the database, logs, installation identity, or capability token. Delete retained state only as a separate explicit operator decision after backup.
+Local marketplaces are read directly; `marketplace upgrade` refreshes Git-backed marketplace snapshots and is not required for this repository path.
+
+For a complete program uninstall:
+
+```powershell
+codex-inter-agent host status
+codex-inter-agent host stop
+codex plugin remove codex-inter-agent-messaging@codex-inter-agent-local
+codex plugin marketplace remove codex-inter-agent-local
+npm.cmd uninstall --global codex-inter-agent-messaging
+```
+
+The desktop plugin settings toggle can disable/re-enable the plugin; CLI removal/addition is the equivalent. Plugin removal does not delete the database, logs, installation identity, or capability token. Delete retained state only as a separate explicit operator decision after a backup; do not delete it while a host or delivery is active.

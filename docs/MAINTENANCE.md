@@ -5,7 +5,7 @@
 - Package/plugin release: `0.4.0`
 - Database schema: `6`
 - Bridge owner protocol: `2`; signed descriptor schema: `3`
-- Codex CLI/app-server: exactly `0.144.0-alpha.4`, per `generated/codex/manifest.json`
+- Codex CLI/app-server: exactly `0.144.2`, per `generated/codex/manifest.json`
 - Node.js 22.11+ and npm 10.9+
 - Release-validated OS: Windows
 
@@ -37,7 +37,7 @@ Migrations are ordered, transactional, body-checksummed, and forward-only. Unkno
 
 1. Record Node, npm, Codex, package/plugin, schema, owner-protocol, and descriptor versions.
 2. Update exact dependencies and the npm lockfile with the supported npm version.
-3. Run `npm.cmd ci`, `npm.cmd run verify:all`, coverage, plugin build/validate/smoke, and package smoke.
+3. Run `npm.cmd ci`, `npm.cmd run verify:all`, coverage, plugin build/validate/smoke, installer smoke, and package smoke.
 4. For transport/scheduling/ownership changes, run the bounded bootstrap matrix and real synchronous/async/group scenarios.
 5. Review the threat model, release notes, redaction, packaged contents, process cleanup, and native dependency provenance.
 
@@ -60,7 +60,15 @@ Before upgrade, stop caller MCP clients and the host, create a hot backup at a n
 
 1. Synchronize package, lockfile, central version, plugin manifest/runtime, owner protocol, descriptor schema, store schema, MCP/app-server metadata, and release records.
 2. From `npm.cmd ci`, run format, lint, strict types, unit/integration/security/recovery/migration tests, coverage, schema drift, and production build.
-3. Build/validate the plugin; inspect relocatable runtime, forbidden-state/secret scan, clean-install smoke, marketplace metadata, and native dependency. Run package smoke.
+3. Build/validate the plugin; inspect relocatable runtime, forbidden-state/secret scan, clean-install smoke, marketplace metadata, and native dependency. Run `test:installer`, the isolated two-pass `smoke:installer`, and package smoke.
 4. Run three clean auto-starts, reuse, concurrent MCP start, crash recovery, ownership rejection, remote CLI connection, and every claimed real delivery surface.
 5. Verify logs, processes, handles, descriptors, locks, and temporary files after every runtime scenario.
 6. Update release notes, compatibility/rollback, handoff, evidence, and the plan ledger. Publication/tagging remains an explicit operator action.
+
+## Installer maintenance
+
+`INSTALL.cmd` is intentionally a small stable launcher; installation logic lives in `scripts/install-plugin.ps1`. Keep its six-step command plan synchronized with package scripts, the marketplace name, plugin selector, minimum runtimes, and uninstall documentation. Installation must remain idempotent for one repository path and fail closed when the same marketplace name resolves elsewhere.
+
+Run `npm.cmd run test:installer` for dry-run, Unicode/spaced-path, collision, missing-command, failure-propagation, and batch exit-code coverage. Run `npm.cmd run smoke:installer` before release; it uses isolated Codex/npm homes, performs first install plus refresh, verifies plugin/CLI state, and removes the complete temporary environment. Review for installer-owned processes or temporary directories afterward.
+
+Do not add identity selection, agent registration, history adoption, host force-stop, data deletion, or Codex internal-state edits to the wizard. Those remain separate operator decisions. Do not update the local plugin by hand-editing Codex configuration; rebuild through repository scripts and reinstall through the supported plugin commands.

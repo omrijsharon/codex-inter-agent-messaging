@@ -3,7 +3,7 @@
 ## Implementation specification for Codex app-server
 
 **Status:** Implemented through v0.4.0; normative architecture and maintenance specification
-**Last updated:** 2026-07-14  
+**Last updated:** 2026-07-15
 **Primary goal:** Give participating persistent Codex threads, hosted through one bridge-managed shared app-server, an on-demand messaging tool so their agents can send requests and receive replies without a human copying text between threads.
 
 ---
@@ -838,6 +838,25 @@ The stock CLI connection workflow is one command: `codex-inter-agent connect`. I
 Registry ownership is stable across ordinary host restarts and is stored per agent generation as owner mode plus installation, database, and bridge-protocol identity. New registrations through the owner are bound automatically. Migrated generations remain unverified until an operator closes independent owners and performs confirmed idle-only adoption. Before any lease or thread RPC, the recipient binding must match the current authority; `thread/resume` and reconciliation must return the exact registered thread ID. Otherwise delivery terminates as `UNSUPPORTED_THREAD_OWNER` without `turn/start`.
 
 This binding is deliberately conservative but cannot detect a private desktop/IDE owner opened later because the pinned public protocol exposes no exclusive per-thread owner claim. The missing authenticated claim/status/start contract is an upstream requirement; binary patching, UI automation, log scraping, and internal history mutation remain forbidden.
+
+### 13.7 Windows one-click installation contract
+
+The repository root provides `INSTALL.cmd` as the supported double-click entrypoint on Windows. It launches a checked-in PowerShell wizard relative to the repository root, so paths containing spaces or non-ASCII characters do not require manual quoting. The entrypoint preserves the wizard exit code and keeps its console visible long enough for the operator to read the final result.
+
+The wizard performs only installation and validation work:
+
+1. Verify the supported Node.js, npm, and Codex CLI/plugin command surface.
+2. Install the repository's locked dependencies, build the production and relocatable plugin runtimes, and validate plugin metadata and secret hygiene.
+3. Install the companion `codex-inter-agent` CLI into the current user's npm global prefix.
+4. Add the repository root as the explicit `codex-inter-agent-local` marketplace.
+5. Install or refresh `codex-inter-agent-messaging@codex-inter-agent-local` through Codex's plugin command.
+6. Verify that the expected marketplace, enabled plugin, cached runtime, and CLI entrypoint are present, then tell the operator to open a new Codex task.
+
+The same repository path is idempotent: Codex reports an already-added marketplace and refreshes the same plugin selector without a destructive remove. A marketplace named `codex-inter-agent-local` that resolves to a different repository is a hard conflict; the wizard must fail with remediation and must not remove, rewrite, or replace that source. Missing prerequisites or any failed external command terminate the wizard with a nonzero exit code and the failed step name.
+
+Installation does not register agents, choose `BRIDGE_AGENT_ID`, bind or replace histories, stop an active host, modify the message database, edit Codex session/rollout state, or start deliveries. Trusted caller identity and registration remain separate operator actions. Participating histories still use `codex-inter-agent connect` and the bridge-managed owner; installing a plugin into the desktop app does not make a privately desktop-owned history a supported delivery target.
+
+The wizard exposes a non-mutating dry-run/plan mode for deterministic diagnostics and tests. Installer validation uses isolated Codex and npm homes, including first install, same-path refresh, conflicting marketplace, path portability, error propagation, and cleanup. It must not use production credentials or retain capability tokens, descriptors, locks, databases, logs, package archives, or child processes after the test.
 
 ---
 

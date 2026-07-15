@@ -42,8 +42,10 @@
     "plugin:validate": "node scripts/validate-plugin.mjs",
     "smoke:plugin": "node scripts/smoke-plugin.mjs",
     "smoke:stability": "tsx tests/runtime/bootstrap-stability.smoke.ts",
+    "test:installer": "node scripts/test-installer.mjs",
+    "smoke:installer": "node scripts/smoke-installer.mjs",
     "verify": "run-s format:check lint typecheck test schema:check",
-    "verify:all": "run-s verify test:integration build"
+    "verify:all": "run-s verify test:installer test:integration build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

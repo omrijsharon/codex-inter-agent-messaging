@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { appendFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { loadConfig } from "../config/index.js";
+import { isMainModule } from "../entrypoint.js";
 import { createLogger, LOG_EVENTS, redactSensitiveText } from "../logging/logger.js";
 import { BridgeDatabase } from "../store/database.js";
 import { BRIDGE_OWNER_MODE, BRIDGE_OWNER_PROTOCOL_VERSION, BRIDGE_VERSION } from "../version.js";
@@ -151,7 +151,7 @@ export async function runHost(
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMainModule(import.meta.url, process.argv[1])) {
   runHost().catch((error: unknown) => {
     const message = redactSensitiveText(error instanceof Error ? error.message : "host failed");
     try {

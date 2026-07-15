@@ -2,7 +2,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -10,6 +9,7 @@ import { AppServerClient } from "../app_server/client.js";
 import { ensureHostRunning } from "../app_server/bootstrap.js";
 import { registerHostClient } from "../app_server/control.js";
 import { loadConfig } from "../config/index.js";
+import { isMainModule } from "../entrypoint.js";
 import { createLogger } from "../logging/logger.js";
 import { BridgeDatabase } from "../store/database.js";
 import {
@@ -290,7 +290,7 @@ async function main(): Promise<void> {
   await server.connect(new StdioServerTransport());
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMainModule(import.meta.url, process.argv[1])) {
   main().catch((error: unknown) => {
     process.stderr.write(`${error instanceof Error ? error.message : "MCP server failed"}\n`);
     process.exitCode = 1;

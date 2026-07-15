@@ -16,7 +16,7 @@ function runNpm(arguments_, cwd) {
 }
 
 runNpm(["run", "build"], root);
-await rm(runtimeRoot, { recursive: true, force: true });
+await rm(runtimeRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 await mkdir(runtimeRoot, { recursive: true });
 await cp(path.join(root, "dist"), path.join(runtimeRoot, "dist"), { recursive: true });
 await cp(path.join(root, "package-lock.json"), path.join(runtimeRoot, "package-lock.json"));

@@ -6,6 +6,18 @@ The implementation follows [`getting_started_plan.md`](getting_started_plan.md),
 
 Setup and operations: [`docs/INSTALL.md`](docs/INSTALL.md), [`docs/OPERATIONS.md`](docs/OPERATIONS.md), [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md), [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md), and [`docs/RELEASE_NOTES.md`](docs/RELEASE_NOTES.md).
 
+## Install on Windows
+
+After downloading or cloning the repository, double-click **`INSTALL.cmd`** in the repository root. The wizard checks Node.js, npm, and Codex; builds and validates the relocatable runtime; installs the `codex-inter-agent` CLI; registers the repository marketplace; and installs or refreshes the enabled plugin. It is safe to rerun from the same repository path.
+
+The installer does not choose agent identities or register histories. After it succeeds, open a new Codex task and follow [`docs/INSTALL.md`](docs/INSTALL.md) to set trusted `BRIDGE_AGENT_ID` values, register participating histories, and launch them through `codex-inter-agent connect`.
+
+For a read-only prerequisite and command-plan check:
+
+```powershell
+.\INSTALL.cmd -DryRun
+```
+
 Post-MVP asynchronous tools and their explicit anti-loop semantics are documented in [`docs/ASYNC_MESSAGING.md`](docs/ASYNC_MESSAGING.md).
 
 Authorized one-to-many fan-out, membership snapshots, partial outcomes, retries, and explicit synthesis are documented in [`docs/GROUP_MESSAGING.md`](docs/GROUP_MESSAGING.md).
@@ -43,6 +55,8 @@ npm.cmd run smoke:package       # build, pack, clean-install, and exercise relea
 npm.cmd run plugin:build        # assemble the relocatable production plugin runtime
 npm.cmd run plugin:validate     # validate manifest, marketplace, contents, and secret hygiene
 npm.cmd run smoke:plugin        # clean-copy MCP/bootstrap smoke from a Unicode path
+npm.cmd run test:installer      # deterministic wizard, collision, path, and failure tests
+npm.cmd run smoke:installer     # isolated first-install/reinstall/cleanup acceptance
 npm.cmd run smoke:messaging     # bounded real synchronous participating-thread exchange
 npm.cmd run smoke:async         # bounded real asynchronous delivery plus group coverage
 npm.cmd run smoke:group         # explicit alias for the combined async/group real smoke

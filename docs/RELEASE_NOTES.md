@@ -1,5 +1,12 @@
 # Release Notes
 
+## Installation wizard update (unreleased)
+
+- Adds root `INSTALL.cmd` plus an idempotent PowerShell wizard for locked build/validation, current-user CLI installation, repository marketplace registration, plugin installation/refresh, and post-install verification.
+- Adds dry-run/JSON diagnostics, fail-closed marketplace collision handling, deterministic installer tests, and an isolated first-install/reinstall/cleanup smoke test.
+- Fixes CLI/host/MCP executable detection for equivalent Windows short, long, linked, spaced, and Unicode paths, and adds bounded recovery for transient Windows plugin-runtime replacement locks.
+- Regenerates protocol artifacts for Codex CLI/app-server `0.144.2`: 1,008 files, digest `00d059e58c3fe4320c38af5bca1070f7a72d06c1598937991b035845e5f57627`. Structural comparison against `0.144.0-alpha.4` found no schema changes; only aggregate-definition order changed.
+
 ## v0.4.0 — Automatic-bootstrap Codex plugin
 
 - Adds an installable repository-marketplace Codex plugin with a relocatable production MCP runtime and 13 strict caller-bound tools.
@@ -19,7 +26,7 @@ See [`evidence/authoritative-owner-integration.md`](evidence/authoritative-owner
 
 ## v0.1.0 — MVP
 
-Current status: v0.4.0 locally validated on Windows with Codex CLI `0.144.0-alpha.4`.
+Current status: v0.4.0 plus the unreleased installation-wizard update is locally validated on Windows with Codex CLI `0.144.2`.
 
 Highlights:
 

@@ -1,10 +1,10 @@
 # Getting Started Implementation Plan
 
 **Project:** Codex Inter-Agent Messaging Bridge  
-**Plan status:** Complete — v0.4.0 automatic singleton bootstrap and Codex plugin integration accepted
+**Plan status:** Complete — Milestone 18 Windows installation wizard accepted
 **Architecture source:** CODEX_INTER_AGENT_MESSAGING_BRIDGE.md  
-**Next task:** None — Milestones 1–17 are complete
-**Timezone for completion records:** Asia/Jerusalem  
+**Next task:** None — Milestones 1–18 are complete
+**Timezone for completion records:** Asia/Jerusalem
 
 ## How to use this plan
 
@@ -727,3 +727,66 @@
 - Concurrent tasks never create duplicate bridge hosts or app-server owners.
 - Failure and recovery are typed, bounded, observable, and safe.
 - Documentation clearly distinguishes supported CLI/custom-host integration from any unproven official desktop integration.
+
+---
+
+## Milestone 18 — Windows one-click installation wizard
+
+- [x] **Milestone 18 complete — A user can install or safely refresh the local Codex plugin and companion CLI by double-clicking one root-level file.** — Completed: 2026-07-15 09:22:18 +03:00 (Asia/Jerusalem)
+
+### Tasks
+
+- [x] **18.1 Define and document the one-click installation contract before implementing it.** — Completed: 2026-07-15 08:44:49 +03:00 (Asia/Jerusalem)
+  - Keep the supported Windows, Node.js, npm, Codex plugin, trusted caller-identity, and shared-owner boundaries explicit.
+  - Install the plugin and companion `codex-inter-agent` CLI, but do not register agents, invent identities, stop active hosts, or mutate Codex histories.
+  - Define deterministic first-install, same-repository refresh, conflicting-marketplace, missing-prerequisite, and partial-failure behavior.
+  - Completion evidence: architecture section 13.7 defines the root entrypoint, prerequisite/build/install/verify sequence, idempotent same-path refresh, fail-closed marketplace collision behavior, identity and ownership exclusions, dry-run diagnostics, isolated acceptance test, and cleanup boundary. A temporary `CODEX_HOME` probe on Codex CLI 0.144.2 verified that repeated marketplace and plugin adds are non-destructive and idempotent.
+- [x] **18.2 Add a root-level `INSTALL.cmd` double-click entrypoint.** — Completed: 2026-07-15 09:07:39 +03:00 (Asia/Jerusalem)
+  - Resolve the repository path safely when it contains spaces or non-ASCII characters.
+  - Launch the checked-in PowerShell wizard without requiring execution-policy changes or administrator privileges.
+  - Preserve the installer exit code and keep the console open with a concise success or failure summary.
+  - Completion evidence: `INSTALL.cmd` resolves the wizard through `%~dp0`, invokes Windows PowerShell with a process-local execution-policy bypass, preserves `%ERRORLEVEL%`, reports the result, and pauses only for normal interactive use. The batch acceptance test executed it from this repository path with spaces and verified the dry-run result and exit code.
+- [x] **18.3 Implement an idempotent PowerShell installation wizard.** — Completed: 2026-07-15 09:07:39 +03:00 (Asia/Jerusalem)
+  - Verify supported Node.js, npm, and Codex CLI/plugin commands before making changes.
+  - Install locked dependencies, build and validate the relocatable plugin runtime, install the companion CLI, register the repository marketplace, and install or refresh the plugin.
+  - Detect a marketplace-name collision at another path and fail closed instead of removing or rewriting unrelated configuration.
+  - Avoid printing credentials, modifying agent registrations, or stopping a host with active deliveries.
+  - Completion evidence: `scripts/install-plugin.ps1` verifies Node.js/npm minimums and the Codex plugin surface, checks marketplace ownership before writes, installs locked dependencies, builds/validates the relocatable runtime, installs the user-prefix CLI, performs idempotent marketplace/plugin adds, and verifies the enabled plugin and exact CLI version. It exposes human output plus `-DryRun`/`-Json` diagnostics and makes no identity, registry, host, or history changes.
+- [x] **18.4 Add deterministic installer tests and developer diagnostics.** — Completed: 2026-07-15 09:07:39 +03:00 (Asia/Jerusalem)
+  - Add a non-mutating dry-run mode and a machine-readable command plan for repeatable diagnosis.
+  - Test missing prerequisites, command failure propagation, paths with spaces and Unicode, first install, and idempotent reinstall using isolated Codex/npm homes or deterministic command shims.
+  - Verify the batch entrypoint preserves paths and exit codes without requiring a visible production Codex restart.
+  - Completion evidence: `npm run test:installer` passes dry-run, Unicode/spaced path, conflicting marketplace, missing prerequisite, exit-code propagation, and root batch-entrypoint scenarios. `test:installer` is part of `verify:all`; `smoke:installer` is the bounded isolated release acceptance command.
+- [x] **18.4a Harden repeated plugin builds against transient Windows file locks discovered by the installer smoke test.** — Completed: 2026-07-15 09:07:39 +03:00 (Asia/Jerusalem)
+  - Use a short bounded retry only for recursive runtime replacement; do not hide persistent permission or ownership failures.
+  - Re-run consecutive plugin builds and the isolated two-install wizard smoke test.
+  - Completion evidence: plugin runtime replacement uses five 100 ms retries only for recursive `fs.rm`; two consecutive `plugin:build` runs and plugin validation passed, and the complete two-install wizard smoke subsequently passed.
+- [x] **18.4b Fix executable entrypoint detection for equivalent Windows short, long, linked, spaced, and Unicode paths discovered by the installed-CLI probe.** — Completed: 2026-07-15 09:07:39 +03:00 (Asia/Jerusalem)
+  - Compare filesystem identity rather than raw file-URL spelling in the CLI, host, and MCP entrypoints.
+  - Add deterministic linked-path coverage and require the installer to reject an empty or mismatched installed CLI version.
+  - Completion evidence: the CLI, host, and MCP entrypoints now use file identity with a normalized-path fallback. The hard-link unit regression passed, and a real npm-global install under an 8.3 short root plus Unicode/spaces returned CLI version `0.4.0` and complete help. The installer now rejects empty or mismatched installed CLI versions.
+- [x] **18.5 Run a realistic isolated installation smoke test.** — Completed: 2026-07-15 09:07:39 +03:00 (Asia/Jerusalem)
+  - Execute the wizard against temporary Codex and npm homes, inspect marketplace/plugin/CLI state, and launch the installed CLI help/version paths.
+  - Repeat the install to prove safe refresh behavior, then remove the temporary installation and confirm no processes, descriptors, locks, databases, logs, or package archives remain.
+  - Completion evidence: `npm run smoke:installer` completed first install and idempotent refresh in temporary Codex/npm homes with spaces and Unicode, found the plugin installed/enabled, ran CLI version/help, and reported `cleanup: clean`. A separate post-run audit found no installer-owned process or installer temporary directory.
+- [x] **18.6 Update installation, troubleshooting, maintenance, and root README guidance.** — Completed: 2026-07-15 09:09:46 +03:00 (Asia/Jerusalem)
+  - Lead with double-click installation while retaining the manual commands for automation and diagnosis.
+  - Explain the new-task/restart boundary, trusted `BRIDGE_AGENT_ID` setup, registration, `codex-inter-agent connect`, upgrade/reinstall behavior, repository-location dependency, and complete uninstall steps.
+  - Completion evidence: the root README and `docs/INSTALL.md` lead with `INSTALL.cmd` and retain exact dry-run/manual commands. Installation, troubleshooting, and maintenance docs cover prerequisites, identity/registration separation, new-task discovery, same-path refresh, moved-path collision recovery, local-marketplace behavior, explicit host lifecycle, plugin/marketplace/global-CLI removal, retained data, and installer test/release procedures. Prettier and the six-scenario installer suite pass after the edits.
+- [x] **18.7 Run the full repository and plugin release gates, audit the plan ledger, and record completion evidence.** — Completed: 2026-07-15 09:22:18 +03:00 (Asia/Jerusalem)
+  - Completion evidence: after a clean 299-package install, `verify:all` passed formatting, lint, strict types, 93 unit tests, six installer scenarios, 12 integration tests, Codex 0.144.2 schema drift, and production build; coverage passed all 105 tests at 76.19% lines. Repository/official plugin validation, 13-tool plugin smoke, three-command package smoke, two-pass isolated installer smoke, and the bounded singleton/recovery/ownership stability matrix all passed. `docs/evidence/installation-wizard.md` records exact results. Final process/temp/runtime/global-state and diff audits were clean, and the ledger contained only this task and milestone before completion.
+- [x] **18.7a Regenerate and review the installed Codex 0.144.2 protocol after the final gate detects drift from 0.144.0-alpha.4.** — Completed: 2026-07-15 09:13:15 +03:00 (Asia/Jerusalem)
+  - Inspect generated schema/type changes for every app-server method and field used by messaging, ownership, approvals, and remote connection.
+  - Update exact compatibility documentation and rerun schema validation plus the full behavioral gates before completing Milestone 18.
+  - Completion evidence: regeneration produced 1,008 files for Codex CLI `0.144.2` with digest `00d059e58c3fe4320c38af5bca1070f7a72d06c1598937991b035845e5f57627`. Only the aggregate v2 schema ordering and manifest changed; a recursive parsed-JSON comparison against the prior aggregate returned zero structural changes. Exact assertions found thread list/read/resume, turn start/interrupt, `clientUserMessageId`, item/turn completion notifications, and approval requests; `schema:check` passed and current compatibility docs were updated while historical evidence remained unchanged.
+- [x] **18.7b Make first-run installation identity creation atomic after the full gate exposes a simultaneous-bootstrap partial-read race.** — Completed: 2026-07-15 09:16:30 +03:00 (Asia/Jerusalem)
+  - Publish the generated identity with exclusive create semantics, tolerate a concurrent winner, and never accept a partial or malformed persisted value.
+  - Add deterministic unit/multiprocess coverage and rerun the bootstrap integration plus full gate.
+  - Completion evidence: each first-run caller now writes and syncs a private owner-only candidate, atomically links the complete file into place, reads a concurrent winner on `EEXIST`, validates the UUID, and removes its candidate. A 20-caller unit race and three consecutive three-process host-bootstrap integration runs passed with no temporary identity files.
+
+### Exit criteria
+
+- Double-clicking `INSTALL.cmd` from a downloaded repository installs or refreshes the plugin and companion CLI with actionable progress and errors.
+- The installer is safe to rerun, does not overwrite a different marketplace with the same name, and never configures model-supplied identity.
+- A temporary clean environment proves plugin discovery, CLI availability, path portability, reinstall behavior, and cleanup.
+- Manual installation and recovery remain documented for scripted environments and troubleshooting.

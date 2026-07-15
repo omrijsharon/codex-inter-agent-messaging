@@ -2,7 +2,6 @@
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { AppServerClient } from "../app_server/client.js";
 import {
   ensureHostRunning,
@@ -13,6 +12,7 @@ import {
   type ManagedHostConnection,
 } from "../app_server/bootstrap.js";
 import { loadConfig } from "../config/index.js";
+import { isMainModule } from "../entrypoint.js";
 import { BridgeDatabase } from "../store/database.js";
 import { AclRepository, AgentRepository } from "../store/repositories.js";
 import { GroupRepository } from "../store/groups.js";
@@ -335,7 +335,7 @@ export async function runCli(
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMainModule(import.meta.url, process.argv[1])) {
   runCli(process.argv.slice(2)).catch((error: unknown) => {
     process.stderr.write(`${error instanceof Error ? error.message : "command failed"}\n`);
     process.exitCode = 2;

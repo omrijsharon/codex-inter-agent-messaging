@@ -854,6 +854,9 @@
 - [ ] **20.2b Canonicalize durable and reported marketplace paths across macOS `/var` → `/private/var` resolution.**
   - Resolve the nearest existing ancestor with Node's native realpath while preserving not-yet-created suffixes, so dry-run/collision checks remain no-write.
   - Register and verify the canonical durable source, then prove the second install recognizes the same marketplace rather than treating the OS-resolved path as a collision.
+- [ ] **20.2c Keep JSON mode machine-readable after real npm build/install output is produced.**
+  - Route child build/install diagnostics to stderr when `--json` is selected so stdout contains exactly one result object.
+  - Parse both first-install and refresh results directly in the smoke test; do not scrape a final line from mixed human output.
 - [ ] **20.3 Add a double-clickable source installer and native macOS installer app.**
   - Add executable `INSTALL.command` for downloaded source checkouts.
   - Add an AppKit GUI with welcome/configuration, CLI and data-directory browsing, official CLI consent, progress, completion, cancellation, and actionable failure details.

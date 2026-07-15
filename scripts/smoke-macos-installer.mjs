@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { access, mkdtemp, mkdir, rm } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,9 +13,7 @@ if (process.platform !== "darwin") {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const backend = path.join(root, "scripts", "install-plugin-macos.sh");
 const protocol = JSON.parse(
-  await import(path.join(root, "generated", "codex", "manifest.json"), {
-    with: { type: "json" },
-  }).then((m) => JSON.stringify(m.default)),
+  await readFile(path.join(root, "generated", "codex", "manifest.json"), "utf8"),
 );
 const expectedCodex = protocol.codexVersion.match(/[0-9]+\.[0-9]+\.[0-9]+/u)[0];
 const codex = process.env.MACOS_SMOKE_CODEX;

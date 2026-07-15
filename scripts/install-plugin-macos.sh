@@ -349,9 +349,11 @@ if [[ "$codex_install_planned" -eq 1 ]]; then
     rm -rf "$installer_tmp"
     fail "Could not download the official Codex CLI installer."
   fi
+  installer_output="/dev/stdout"
+  [[ "$json" -eq 1 ]] && installer_output="/dev/stderr"
   if ! CODEX_NON_INTERACTIVE=1 CODEX_RELEASE="$supported_codex_version" \
       CODEX_INSTALL_DIR="$HOME/.local/bin" CODEX_HOME="$codex_home" \
-      /bin/sh "$installer_tmp/install.sh"; then
+      /bin/sh "$installer_tmp/install.sh" >"$installer_output"; then
     rm -rf "$installer_tmp"
     fail "The official Codex CLI installer failed."
   fi
@@ -370,12 +372,20 @@ staged_source="$staging_root/source"
 current_step="Install locked dependencies"
 installer_message "Installing locked dependencies..."
 write_progress "running" "$current_step"
-(cd "$staged_source" && "$npm_command" ci --no-audit --no-fund)
+if [[ "$json" -eq 1 ]]; then
+  (cd "$staged_source" && "$npm_command" ci --no-audit --no-fund) >&2
+else
+  (cd "$staged_source" && "$npm_command" ci --no-audit --no-fund)
+fi
 
 current_step="Build and validate plugin"
 installer_message "Building and validating the plugin..."
 write_progress "running" "$current_step"
-(cd "$staged_source" && "$npm_command" run plugin:build && "$npm_command" run plugin:validate)
+if [[ "$json" -eq 1 ]]; then
+  (cd "$staged_source" && "$npm_command" run plugin:build && "$npm_command" run plugin:validate) >&2
+else
+  (cd "$staged_source" && "$npm_command" run plugin:build && "$npm_command" run plugin:validate)
+fi
 
 current_step="Publish durable payload"
 if [[ -d "$durable_source" ]]; then
@@ -391,7 +401,11 @@ current_step="Install companion CLI"
 installer_message "Installing the companion CLI for this user..."
 write_progress "running" "$current_step"
 rm -rf "$install_root/cli"
-"$npm_command" install --prefix "$install_root/cli" "$durable_source" --no-audit --no-fund
+if [[ "$json" -eq 1 ]]; then
+  "$npm_command" install --prefix "$install_root/cli" "$durable_source" --no-audit --no-fund >&2
+else
+  "$npm_command" install --prefix "$install_root/cli" "$durable_source" --no-audit --no-fund
+fi
 cli_target="$install_root/cli/node_modules/.bin/codex-inter-agent"
 [[ -x "$cli_target" ]] || fail "npm completed but the companion CLI was not found at '$cli_target'."
 ln -sfn "$cli_target" "$HOME/.local/bin/codex-inter-agent"

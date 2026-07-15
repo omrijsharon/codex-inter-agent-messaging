@@ -862,6 +862,9 @@
 - [ ] **20.5a Correct workflow context scoping exposed by the first pushed Actions parse.**
   - Move runner-temporary paths from job-level expression evaluation into a runner step and export them through `GITHUB_ENV`/`GITHUB_PATH` before later checks.
   - Re-push and require a real job graph and terminal macOS execution; an invalid-workflow failure is not acceptance evidence.
+- [ ] **20.5b Separate the workstation-history integration fixture from the portable macOS installer gate.**
+  - The hosted runner has no local copy of thread `019f6082-fd66-7da2-aa9f-b6461c2c486d`; do not treat that expected absence as a macOS product failure or copy private history into CI.
+  - Run the deterministic 11-test integration subset on macOS, retain the complete 12-test suite in local release gates, and run the real isolated Codex plugin first-install/refresh smoke before the subset.
 - [ ] **20.6 Add an optional protected Developer ID signing and Apple notarization path.**
   - Require explicit protected secrets/variables and manual or tagged release authorization.
   - Import the certificate through a temporary keychain, sign with hardened runtime and timestamp, submit with `notarytool`, staple, verify with `codesign`/`spctl`, upload the distinct notarized artifact, and clean credentials/keychain state.

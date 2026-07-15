@@ -73,9 +73,9 @@ jobs:
       - name: Run repository and macOS installer checks
         run: |
           npm run verify
-          npm run test:integration
           npm run test:installer:macos
           MACOS_SMOKE_CODEX="$CODEX_INSTALL_DIR/codex" npm run smoke:installer:macos
+          npm exec vitest -- run tests/integration --exclude tests/integration/shared-app-server-host.test.ts
 
       - name: Build and inspect universal app
         run: |

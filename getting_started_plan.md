@@ -857,6 +857,9 @@
 - [ ] **20.2c Keep JSON mode machine-readable after real npm build/install output is produced.**
   - Route child build/install diagnostics to stderr when `--json` is selected so stdout contains exactly one result object.
   - Parse both first-install and refresh results directly in the smoke test; do not scrape a final line from mixed human output.
+- [ ] **20.2d Convert staged child-command exits into structured installer failures under Bash `set -e`.**
+  - Guard dependency, build/validation, and companion-install commands explicitly so `--json` always emits the failed step instead of exiting before the error handler.
+  - Assert that a forced npm failure leaves no published durable source and returns the `Install locked dependencies` step.
 - [ ] **20.3 Add a double-clickable source installer and native macOS installer app.**
   - Add executable `INSTALL.command` for downloaded source checkouts.
   - Add an AppKit GUI with welcome/configuration, CLI and data-directory browsing, official CLI consent, progress, completion, cancellation, and actionable failure details.

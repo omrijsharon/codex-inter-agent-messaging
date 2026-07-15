@@ -373,18 +373,26 @@ current_step="Install locked dependencies"
 installer_message "Installing locked dependencies..."
 write_progress "running" "$current_step"
 if [[ "$json" -eq 1 ]]; then
-  (cd "$staged_source" && "$npm_command" ci --no-audit --no-fund) >&2
+  if ! (cd "$staged_source" && "$npm_command" ci --no-audit --no-fund) >&2; then
+    fail "Locked dependency installation failed."
+  fi
 else
-  (cd "$staged_source" && "$npm_command" ci --no-audit --no-fund)
+  if ! (cd "$staged_source" && "$npm_command" ci --no-audit --no-fund); then
+    fail "Locked dependency installation failed."
+  fi
 fi
 
 current_step="Build and validate plugin"
 installer_message "Building and validating the plugin..."
 write_progress "running" "$current_step"
 if [[ "$json" -eq 1 ]]; then
-  (cd "$staged_source" && "$npm_command" run plugin:build && "$npm_command" run plugin:validate) >&2
+  if ! (cd "$staged_source" && "$npm_command" run plugin:build && "$npm_command" run plugin:validate) >&2; then
+    fail "Plugin build or validation failed."
+  fi
 else
-  (cd "$staged_source" && "$npm_command" run plugin:build && "$npm_command" run plugin:validate)
+  if ! (cd "$staged_source" && "$npm_command" run plugin:build && "$npm_command" run plugin:validate); then
+    fail "Plugin build or validation failed."
+  fi
 fi
 
 current_step="Publish durable payload"
@@ -402,9 +410,13 @@ installer_message "Installing the companion CLI for this user..."
 write_progress "running" "$current_step"
 rm -rf "$install_root/cli"
 if [[ "$json" -eq 1 ]]; then
-  "$npm_command" install --prefix "$install_root/cli" "$durable_source" --no-audit --no-fund >&2
+  if ! "$npm_command" install --prefix "$install_root/cli" "$durable_source" --no-audit --no-fund >&2; then
+    fail "Companion CLI installation failed."
+  fi
 else
-  "$npm_command" install --prefix "$install_root/cli" "$durable_source" --no-audit --no-fund
+  if ! "$npm_command" install --prefix "$install_root/cli" "$durable_source" --no-audit --no-fund; then
+    fail "Companion CLI installation failed."
+  fi
 fi
 cli_target="$install_root/cli/node_modules/.bin/codex-inter-agent"
 [[ -x "$cli_target" ]] || fail "npm completed but the companion CLI was not found at '$cli_target'."

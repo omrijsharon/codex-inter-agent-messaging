@@ -42,8 +42,6 @@ jobs:
     timeout-minutes: 45
     env:
       CODEX_RELEASE: "0.144.2"
-      CODEX_INSTALL_DIR: ${{ runner.temp }}/codex-bin
-      CODEX_HOME: ${{ runner.temp }}/codex-home
       CODEX_NON_INTERACTIVE: "1"
     steps:
       - name: Check out source
@@ -58,9 +56,14 @@ jobs:
       - name: Install the manifest-pinned official Codex CLI
         shell: bash
         run: |
+          CODEX_INSTALL_DIR="$RUNNER_TEMP/codex-bin"
+          CODEX_HOME="$RUNNER_TEMP/codex-home"
+          export CODEX_INSTALL_DIR CODEX_HOME
           mkdir -p "$CODEX_HOME" "$CODEX_INSTALL_DIR"
           curl -fsSL https://chatgpt.com/codex/install.sh -o "$RUNNER_TEMP/install-codex.sh"
           /bin/sh "$RUNNER_TEMP/install-codex.sh"
+          echo "CODEX_INSTALL_DIR=$CODEX_INSTALL_DIR" >> "$GITHUB_ENV"
+          echo "CODEX_HOME=$CODEX_HOME" >> "$GITHUB_ENV"
           echo "$CODEX_INSTALL_DIR" >> "$GITHUB_PATH"
           "$CODEX_INSTALL_DIR/codex" --version
 
@@ -68,13 +71,11 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Run repository and macOS installer checks
-        env:
-          MACOS_SMOKE_CODEX: ${{ runner.temp }}/codex-bin/codex
         run: |
           npm run verify
           npm run test:integration
           npm run test:installer:macos
-          npm run smoke:installer:macos
+          MACOS_SMOKE_CODEX="$CODEX_INSTALL_DIR/codex" npm run smoke:installer:macos
 
       - name: Build and inspect universal app
         run: |

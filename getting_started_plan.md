@@ -859,6 +859,9 @@
   - Run on the current supported `macos-15` hosted runner with pinned Node/npm and action majors.
   - Run repository checks, macOS tests, the real manifest-pinned official Codex install, first install plus refresh, universal app build, bundle/launch/code-sign checks, archive creation, and artifact upload.
   - Add concurrency and least-privilege workflow permissions; do not expose release secrets to pull requests.
+- [ ] **20.5a Correct workflow context scoping exposed by the first pushed Actions parse.**
+  - Move runner-temporary paths from job-level expression evaluation into a runner step and export them through `GITHUB_ENV`/`GITHUB_PATH` before later checks.
+  - Re-push and require a real job graph and terminal macOS execution; an invalid-workflow failure is not acceptance evidence.
 - [ ] **20.6 Add an optional protected Developer ID signing and Apple notarization path.**
   - Require explicit protected secrets/variables and manual or tagged release authorization.
   - Import the certificate through a temporary keychain, sign with hardened runtime and timestamp, submit with `notarytool`, staple, verify with `codesign`/`spctl`, upload the distinct notarized artifact, and clean credentials/keychain state.

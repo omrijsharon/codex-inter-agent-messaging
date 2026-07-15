@@ -865,6 +865,9 @@
 - [ ] **20.5b Separate the workstation-history integration fixture from the portable macOS installer gate.**
   - The hosted runner has no local copy of thread `019f6082-fd66-7da2-aa9f-b6461c2c486d`; do not treat that expected absence as a macOS product failure or copy private history into CI.
   - Run the deterministic 11-test integration subset on macOS, retain the complete 12-test suite in local release gates, and run the real isolated Codex plugin first-install/refresh smoke before the subset.
+- [ ] **20.5c Authenticate only the official installer's GitHub API metadata request after hosted-runner rate limiting.**
+  - Keep the official OpenAI `install.sh` and exact release path, but provide a CI-only `curl` shim that adds the least-privilege workflow token only for `https://api.github.com/` arguments.
+  - Never send the GitHub token to `chatgpt.com`, release asset hosts, logs, installer artifacts, or ordinary user installations.
 - [ ] **20.6 Add an optional protected Developer ID signing and Apple notarization path.**
   - Require explicit protected secrets/variables and manual or tagged release authorization.
   - Import the certificate through a temporary keychain, sign with hardened runtime and timestamp, submit with `notarytool`, staple, verify with `codesign`/`spctl`, upload the distinct notarized artifact, and clean credentials/keychain state.

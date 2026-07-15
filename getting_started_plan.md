@@ -1,9 +1,9 @@
 # Getting Started Implementation Plan
 
 **Project:** Codex Inter-Agent Messaging Bridge  
-**Plan status:** In progress — Milestone 20 macOS installer and GitHub Actions validation
+**Plan status:** Complete — Milestone 20 macOS installer and GitHub Actions validation accepted
 **Architecture source:** CODEX_INTER_AGENT_MESSAGING_BRIDGE.md  
-**Next task:** 20.2 — Implement the shared macOS installer backend and durable per-user payload
+**Next task:** None — Milestones 1–20 are complete
 **Timezone for completion records:** Asia/Jerusalem
 
 ## How to use this plan
@@ -839,57 +839,64 @@
 
 ## Milestone 20 — macOS installer and GitHub Actions release validation
 
-- [ ] **Milestone 20 complete — Apple silicon and Intel users have a tested current-user installer, and GitHub Actions produces the validated macOS artifact.**
+- [x] **Milestone 20 complete — Apple silicon and Intel users have a tested current-user installer, and GitHub Actions produces the validated macOS artifact.** — Completed: 2026-07-15 12:30:57 +03:00 (Asia/Jerusalem)
 
 ### Tasks
 
 - [x] **20.1 Define the macOS installation, artifact, CI, signing, and notarization contract before implementation.** — Completed: 2026-07-15 11:41:20 +03:00 (Asia/Jerusalem)
   - Completion evidence: architecture section 13.9 defines source and app entrypoints, durable allowlisted payload, public CLI discovery and pinned official recovery, current-user/no-sudo behavior, fail-closed marketplace ownership, universal bundle requirements, CI validation authority, and the unsigned-versus-signed/notarized release boundary.
-- [ ] **20.2 Implement the shared macOS installer backend and durable per-user payload.**
+- [x] **20.2 Implement the shared macOS installer backend and durable per-user payload.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Add dry-run, JSON, progress, explicit CLI/data/install-root selections, exact version validation, official CLI consent, staged payload build, per-user companion CLI installation, marketplace/plugin installation, verification, idempotent refresh, and failure cleanup.
   - Reject Codex desktop/editor-private binaries and preserve all identity, owner, history, and retained-data boundaries.
-- [ ] **20.2a Quote the installed CLI invocation after the Unicode/spaced-home smoke reaches the durable install.**
+  - Completion evidence: the shared Bash backend performed real first install and same-source refresh in an isolated `User Home ü`, built/validated the native plugin runtime twice, installed the per-user companion CLI, registered/enabled the plugin with real Codex 0.144.2, returned clean JSON, and removed the complete smoke environment.
+- [x] **20.2a Quote the installed CLI invocation after the Unicode/spaced-home smoke reaches the durable install.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Preserve the intentional `User Home ü` acceptance path and invoke the `~/.local/bin` link as one executable path when verifying its version.
   - Re-run first install and refresh on the hosted macOS runner before checking the backend task.
-- [ ] **20.2b Canonicalize durable and reported marketplace paths across macOS `/var` → `/private/var` resolution.**
+- [x] **20.2b Canonicalize durable and reported marketplace paths across macOS `/var` → `/private/var` resolution.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Resolve the nearest existing ancestor with Node's native realpath while preserving not-yet-created suffixes, so dry-run/collision checks remain no-write.
   - Register and verify the canonical durable source, then prove the second install recognizes the same marketplace rather than treating the OS-resolved path as a collision.
-- [ ] **20.2c Keep JSON mode machine-readable after real npm build/install output is produced.**
+- [x] **20.2c Keep JSON mode machine-readable after real npm build/install output is produced.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Route child build/install diagnostics to stderr when `--json` is selected so stdout contains exactly one result object.
   - Parse both first-install and refresh results directly in the smoke test; do not scrape a final line from mixed human output.
-- [ ] **20.2d Convert staged child-command exits into structured installer failures under Bash `set -e`.**
+- [x] **20.2d Convert staged child-command exits into structured installer failures under Bash `set -e`.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Guard dependency, build/validation, and companion-install commands explicitly so `--json` always emits the failed step instead of exiting before the error handler.
   - Assert that a forced npm failure leaves no published durable source and returns the `Install locked dependencies` step.
-- [ ] **20.3 Add a double-clickable source installer and native macOS installer app.**
+- [x] **20.3 Add a double-clickable source installer and native macOS installer app.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Add executable `INSTALL.command` for downloaded source checkouts.
   - Add an AppKit GUI with welcome/configuration, CLI and data-directory browsing, official CLI consent, progress, completion, cancellation, and actionable failure details.
   - Bundle the allowlisted repository payload so the installed plugin does not depend on keeping the downloaded app or checkout.
-- [ ] **20.4 Add deterministic macOS installer tests and developer diagnostics.**
+  - Completion evidence: Git preserved executable mode on `INSTALL.command`; the source wizard test state passed. AppKit compiled for arm64 and x86_64, `lipo` produced one universal app, bundle self-test found the payload, and the tested app archive passed plist, signature, and ZIP integrity checks.
+- [x] **20.4 Add deterministic macOS installer tests and developer diagnostics.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Cover dry-run JSON, paths with spaces and Unicode, missing/incompatible/private CLI, official recovery planning, marketplace collision, staged-build failure, first install, refresh, GUI self-test, bundle resources, and cleanup.
   - Keep tests isolated from the user's real Codex home, marketplace, npm prefix, bridge state, and histories.
-- [ ] **20.5 Add GitHub Actions macOS build, smoke, and artifact publication.**
+  - Completion evidence: eight deterministic scenarios passed (static contract, dry-run JSON, source wizard, private/missing/incompatible CLI, collision, and staged failure), followed by real first install/refresh, AppKit self-test, resource/archive inspection, and clean removal.
+- [x] **20.5 Add GitHub Actions macOS build, smoke, and artifact publication.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Run on the current supported `macos-15` hosted runner with pinned Node/npm and action majors.
   - Run repository checks, macOS tests, the real manifest-pinned official Codex install, first install plus refresh, universal app build, bundle/launch/code-sign checks, archive creation, and artifact upload.
   - Add concurrency and least-privilege workflow permissions; do not expose release secrets to pull requests.
-- [ ] **20.5a Correct workflow context scoping exposed by the first pushed Actions parse.**
+  - Completion evidence: run `29404306780` completed successfully on `macos-15-arm64`; 93 unit tests, eight installer scenarios, real first install/refresh, 11 portable integration tests, universal build, bundle/signature/archive checks, and artifact upload all passed under `contents: read` permissions.
+- [x] **20.5a Correct workflow context scoping exposed by the first pushed Actions parse.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Move runner-temporary paths from job-level expression evaluation into a runner step and export them through `GITHUB_ENV`/`GITHUB_PATH` before later checks.
   - Re-push and require a real job graph and terminal macOS execution; an invalid-workflow failure is not acceptance evidence.
-- [ ] **20.5b Separate the workstation-history integration fixture from the portable macOS installer gate.**
+- [x] **20.5b Separate the workstation-history integration fixture from the portable macOS installer gate.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - The hosted runner has no local copy of thread `019f6082-fd66-7da2-aa9f-b6461c2c486d`; do not treat that expected absence as a macOS product failure or copy private history into CI.
   - Run the deterministic 11-test integration subset on macOS, retain the complete 12-test suite in local release gates, and run the real isolated Codex plugin first-install/refresh smoke before the subset.
-- [ ] **20.5c Authenticate only the official installer's GitHub API metadata request after hosted-runner rate limiting.**
+- [x] **20.5c Authenticate only the official installer's GitHub API metadata request after hosted-runner rate limiting.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Keep the official OpenAI `install.sh` and exact release path, but provide a CI-only `curl` shim that adds the least-privilege workflow token only for `https://api.github.com/` arguments.
   - Never send the GitHub token to `chatgpt.com`, release asset hosts, logs, installer artifacts, or ordinary user installations.
-- [ ] **20.6 Add an optional protected Developer ID signing and Apple notarization path.**
+- [x] **20.6 Add an optional protected Developer ID signing and Apple notarization path.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Require explicit protected secrets/variables and manual or tagged release authorization.
   - Import the certificate through a temporary keychain, sign with hardened runtime and timestamp, submit with `notarytool`, staple, verify with `codesign`/`spctl`, upload the distinct notarized artifact, and clean credentials/keychain state.
   - Keep ordinary CI useful and honest when Apple credentials are absent.
-- [ ] **20.7 Update installation, troubleshooting, maintenance, release, and evidence documentation.**
+  - Completion evidence: the protected job parsed and was correctly skipped on an ordinary push. It is gated by manual `notarize=true`, repository opt-in variable, and `macos-release` environment, while the passing unsigned job received no Apple credentials.
+- [x] **20.7 Update installation, troubleshooting, maintenance, release, and evidence documentation.** — Completed: 2026-07-15 12:25:46 +03:00 (Asia/Jerusalem)
   - Explain source versus app installation, Apple silicon/Intel support, prerequisites, Finder/Gatekeeper behavior for unsigned artifacts, notarized release identification, restart/new-task boundary, trusted identity, updates, uninstall, and retained data.
-- [ ] **20.8 Run local cross-platform-safe gates, push the workflow, observe the macOS run, fix failures, and record final evidence.**
+  - Completion evidence: README plus installation, troubleshooting, maintenance, release notes, architecture, and this acceptance record distinguish source/app use, durable state, Intel/Apple silicon, unsigned Gatekeeper handling, protected notarization, identity/owner boundaries, refresh, uninstall, and retained data.
+- [x] **20.8 Run local cross-platform-safe gates, push the workflow, observe the macOS run, fix failures, and record final evidence.** — Completed: 2026-07-15 12:30:57 +03:00 (Asia/Jerusalem)
   - Run all Windows-safe repository/plugin/package checks locally without mutating the user's Codex state.
   - Commit and push the implementation, monitor the GitHub Actions macOS job to a terminal result, inspect failed logs if needed, and verify the uploaded artifact metadata.
   - Record exact commands, runner image/architecture, scenario counts, app/archive checks, cleanup, run URL, and any signing/notarization limitation.
+  - Completion evidence: final local `verify:all` passed formatting, lint, strict types, 93 unit tests, eight Windows backend installer scenarios, four real Windows GUI states, all 12 integration tests, Codex 0.144.2 schema drift, and production build. Coverage passed all 105 tests at 76.19% lines. Repository and official plugin validation, 13-tool Unicode-path plugin smoke, three-command package smoke, macOS static contract, and diff whitespace checks passed. Final hosted run `29404306780` succeeded and uploaded artifact `8338405450`; `docs/evidence/macos-installer.md` records the exact runner, scenarios, checks, digest, cleanup, and notarization limitation.
 
 ### Exit criteria
 

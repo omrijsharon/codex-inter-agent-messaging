@@ -851,6 +851,9 @@
 - [ ] **20.2a Quote the installed CLI invocation after the Unicode/spaced-home smoke reaches the durable install.**
   - Preserve the intentional `User Home ü` acceptance path and invoke the `~/.local/bin` link as one executable path when verifying its version.
   - Re-run first install and refresh on the hosted macOS runner before checking the backend task.
+- [ ] **20.2b Canonicalize durable and reported marketplace paths across macOS `/var` → `/private/var` resolution.**
+  - Resolve the nearest existing ancestor with Node's native realpath while preserving not-yet-created suffixes, so dry-run/collision checks remain no-write.
+  - Register and verify the canonical durable source, then prove the second install recognizes the same marketplace rather than treating the OS-resolved path as a collision.
 - [ ] **20.3 Add a double-clickable source installer and native macOS installer app.**
   - Add executable `INSTALL.command` for downloaded source checkouts.
   - Add an AppKit GUI with welcome/configuration, CLI and data-directory browsing, official CLI consent, progress, completion, cancellation, and actionable failure details.

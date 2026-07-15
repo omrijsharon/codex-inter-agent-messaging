@@ -258,7 +258,28 @@ if [[ "$codex_install_planned" -eq 0 && -d "$codex_home" ]]; then
   configured_root="$(printf '%s\n' "$marketplace_output" | awk -v name="$MARKETPLACE_NAME" '$1 == name { $1=""; sub(/^[[:space:]]+/, ""); print; exit }')"
 fi
 durable_source="$install_root/source"
-if [[ -n "$configured_root" && "${configured_root%/}" != "${durable_source%/}" ]]; then
+
+canonical_path() {
+  CANONICAL_PATH_INPUT="$1" "$node_command" -e '
+    const fs = require("node:fs");
+    const path = require("node:path");
+    let current = path.resolve(process.env.CANONICAL_PATH_INPUT);
+    const suffix = [];
+    while (!fs.existsSync(current)) {
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      suffix.unshift(path.basename(current));
+      current = parent;
+    }
+    if (fs.existsSync(current)) current = fs.realpathSync.native(current);
+    process.stdout.write(path.join(current, ...suffix));
+  '
+}
+
+durable_source_canonical="$(canonical_path "$durable_source")"
+configured_root_canonical=""
+[[ -n "$configured_root" ]] && configured_root_canonical="$(canonical_path "$configured_root")"
+if [[ -n "$configured_root" && "${configured_root_canonical%/}" != "${durable_source_canonical%/}" ]]; then
   fail "Marketplace '$MARKETPLACE_NAME' is already configured at '$configured_root'. Remove that known marketplace explicitly or use its installer; this installer will not rebind it to '$durable_source'."
 fi
 
@@ -364,6 +385,7 @@ if [[ -d "$durable_source" ]]; then
 fi
 mv "$staged_source" "$durable_source"
 source_swapped=1
+durable_source="$(canonical_path "$durable_source")"
 
 current_step="Install companion CLI"
 installer_message "Installing the companion CLI for this user..."

@@ -1,0 +1,158 @@
+name: macOS installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      notarize:
+        description: Sign and notarize with protected Apple credentials
+        required: false
+        default: false
+        type: boolean
+  pull_request:
+    paths:
+      - ".github/workflows/macos-installer.yml"
+      - "INSTALL.command"
+      - "installer/macos/**"
+      - "scripts/*macos*"
+      - "src/**"
+      - "plugins/**"
+      - "package*.json"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/macos-installer.yml"
+      - "INSTALL.command"
+      - "installer/macos/**"
+      - "scripts/*macos*"
+      - "src/**"
+      - "plugins/**"
+      - "package*.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-installer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test universal installer
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      CODEX_RELEASE: "0.144.2"
+      CODEX_INSTALL_DIR: ${{ runner.temp }}/codex-bin
+      CODEX_HOME: ${{ runner.temp }}/codex-home
+      CODEX_NON_INTERACTIVE: "1"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.11.0
+          cache: npm
+
+      - name: Install the manifest-pinned official Codex CLI
+        shell: bash
+        run: |
+          mkdir -p "$CODEX_HOME" "$CODEX_INSTALL_DIR"
+          curl -fsSL https://chatgpt.com/codex/install.sh -o "$RUNNER_TEMP/install-codex.sh"
+          /bin/sh "$RUNNER_TEMP/install-codex.sh"
+          echo "$CODEX_INSTALL_DIR" >> "$GITHUB_PATH"
+          "$CODEX_INSTALL_DIR/codex" --version
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run repository and macOS installer checks
+        env:
+          MACOS_SMOKE_CODEX: ${{ runner.temp }}/codex-bin/codex
+        run: |
+          npm run verify
+          npm run test:integration
+          npm run test:installer:macos
+          npm run smoke:installer:macos
+
+      - name: Build and inspect universal app
+        run: |
+          npm run build:installer:macos
+          app="artifacts/macos/Codex Inter-Agent Messaging Installer.app"
+          binary="$app/Contents/MacOS/Codex Inter-Agent Messaging Installer"
+          test "$(lipo -archs "$binary")" = "x86_64 arm64" || test "$(lipo -archs "$binary")" = "arm64 x86_64"
+          plutil -lint "$app/Contents/Info.plist"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          "$binary" --self-test
+          unzip -t artifacts/macos/Codex-Inter-Agent-Messaging-Installer-macOS-universal.zip
+
+      - name: Upload tested unsigned artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-inter-agent-messaging-macos-universal-unsigned
+          path: |
+            artifacts/macos/Codex-Inter-Agent-Messaging-Installer-macOS-universal.zip
+            artifacts/macos/Codex-Inter-Agent-Messaging-Installer-macOS-universal.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  sign-and-notarize:
+    name: Sign and notarize protected release
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.notarize && vars.ENABLE_MACOS_NOTARIZATION == 'true' }}
+    needs: build-and-test
+    runs-on: macos-15
+    timeout-minutes: 30
+    environment: macos-release
+    steps:
+      - name: Download tested app
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-inter-agent-messaging-macos-universal-unsigned
+          path: unsigned
+
+      - name: Import certificate, sign, notarize, and staple
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/codex-installer-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          cleanup() { security delete-keychain "$keychain" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          : "${MACOS_CERTIFICATE_P12_BASE64:?missing certificate}"
+          : "${MACOS_SIGNING_IDENTITY:?missing signing identity}"
+          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
+          ditto -x -k unsigned/Codex-Inter-Agent-Messaging-Installer-macOS-universal.zip signed
+          app="signed/Codex Inter-Agent Messaging Installer.app"
+          codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$RUNNER_TEMP/notarization.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarization.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --wait
+          xcrun stapler staple "$app"
+          xcrun stapler validate "$app"
+          spctl --assess --type execute --verbose=4 "$app"
+          mkdir -p notarized
+          ditto -c -k --sequesterRsrc --keepParent "$app" notarized/Codex-Inter-Agent-Messaging-Installer-macOS-universal-notarized.zip
+          shasum -a 256 notarized/*.zip > notarized/Codex-Inter-Agent-Messaging-Installer-macOS-universal-notarized.zip.sha256
+          rm -f "$RUNNER_TEMP/certificate.p12"
+
+      - name: Upload notarized artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-inter-agent-messaging-macos-universal-notarized
+          path: notarized/*
+          if-no-files-found: error
+          retention-days: 30

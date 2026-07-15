@@ -25,8 +25,8 @@
     "clean": "node scripts/clean.mjs",
     "dev": "tsx src/cli/main.ts",
     "dev:host": "tsx src/app_server/main.ts",
-    "format": "prettier --write src tests scripts docs README.md package.json tsconfig.json tsconfig.build.json eslint.config.js vitest.config.ts",
-    "format:check": "prettier --check src tests scripts docs README.md package.json tsconfig.json tsconfig.build.json eslint.config.js vitest.config.ts",
+    "format": "prettier --write src tests scripts docs .github README.md RELEASES.md getting_started_plan.md CODEX_INTER_AGENT_MESSAGING_BRIDGE.md package.json tsconfig.json tsconfig.build.json eslint.config.js vitest.config.ts",
+    "format:check": "prettier --check src tests scripts docs .github README.md RELEASES.md getting_started_plan.md CODEX_INTER_AGENT_MESSAGING_BRIDGE.md package.json tsconfig.json tsconfig.build.json eslint.config.js vitest.config.ts",
     "lint": "eslint src tests scripts vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run tests/unit",
@@ -44,9 +44,13 @@
     "smoke:stability": "tsx tests/runtime/bootstrap-stability.smoke.ts",
     "test:installer": "node scripts/test-installer.mjs",
     "test:installer:gui": "node scripts/test-installer-gui.mjs",
+    "test:installer:macos": "node scripts/test-macos-installer.mjs",
     "smoke:installer": "node scripts/smoke-installer.mjs",
+    "smoke:installer:macos": "node scripts/smoke-macos-installer.mjs",
+    "build:installer:macos": "bash scripts/build-macos-installer.sh",
     "verify": "run-s format:check lint typecheck test schema:check",
-    "verify:all": "run-s verify test:installer test:installer:gui test:integration build"
+    "verify:all": "run-s verify test:installer test:installer:gui test:integration build",
+    "verify:macos": "run-s verify test:installer:macos test:integration build build:installer:macos"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

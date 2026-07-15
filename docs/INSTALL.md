@@ -2,7 +2,7 @@
 
 ## Supported baseline
 
-- Windows, Node.js 22.11+, npm 10.9+, the Codex desktop app, and a compatible public Codex CLI/app-server (`0.144.2` for this repository snapshot)
+- Windows or macOS 13+, Node.js 22.11+, npm 10.9+, the Codex desktop app, and a compatible public Codex CLI/app-server (`0.144.2` for this repository snapshot)
 - A source checkout or reviewed release directory containing the repository marketplace
 - Participating recipient histories that are closed in independently owned Codex desktop/IDE processes
 
@@ -45,6 +45,45 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-plugin
 For a desktop-only machine with no public `codex` command, include `-InstallCodexCli` in the backend dry run to plan the compatible official CLI installation without downloading it. Passing any argument to `INSTALL.cmd` selects console/automation mode; double-clicking it with no arguments opens the GUI.
 
 After a successful install, completely restart Codex or open a new task. Existing active tasks do not gain newly installed MCP tools mid-session.
+
+## macOS installation
+
+The preferred download is the GitHub Actions artifact named `codex-inter-agent-messaging-macos-universal-unsigned` (or the distinct `-notarized` artifact when the protected release job has succeeded). Extract it, optionally move **Codex Inter-Agent Messaging Installer.app** to `/Applications`, then open it. The native window lets you:
+
+- auto-detect or browse to a public `codex` executable;
+- select the Codex data directory, normally `~/.codex`;
+- consent to installing the exact manifest-pinned public Codex CLI from OpenAI when a compatible CLI is unavailable.
+
+The ordinary branch/PR artifact is ad-hoc signed for integrity checks but is not Developer ID signed or notarized. On first launch, Control-click the app and choose **Open**. If macOS still blocks it, use System Settings → Privacy & Security → **Open Anyway** only after verifying the repository, Actions run, artifact name, and adjacent SHA-256 file. A `-notarized.zip` artifact is produced only by the protected manual workflow after Developer ID signing, Apple `notarytool` acceptance, stapling, and Gatekeeper verification.
+
+From a cloned or downloaded source tree, double-click `INSTALL.command`, or run the backend directly:
+
+```bash
+./INSTALL.command --dry-run
+./INSTALL.command --dry-run --json
+./INSTALL.command --install-codex-cli
+```
+
+The macOS installer performs current-user installation without `sudo`. It stages an explicit, secret-free payload, runs locked dependency installation plus plugin build/validation, then atomically publishes it under:
+
+```text
+~/Library/Application Support/Codex Inter-Agent Messaging/source
+```
+
+The companion package is installed below the same Application Support root and linked at `~/.local/bin/codex-inter-agent`. The marketplace points at the durable source, so removing the checkout, ZIP, or installer app does not break the installed plugin. Rerunning either macOS entrypoint refreshes the same durable source. A marketplace with the same name at another path fails closed and requires an explicit operator decision.
+
+The app may be deleted after installation. To uninstall the macOS program while retaining bridge data:
+
+```bash
+codex-inter-agent host status
+codex-inter-agent host stop
+codex plugin remove codex-inter-agent-messaging@codex-inter-agent-local
+codex plugin marketplace remove codex-inter-agent-local
+rm -f "$HOME/.local/bin/codex-inter-agent"
+rm -rf "$HOME/Library/Application Support/Codex Inter-Agent Messaging"
+```
+
+Do not remove `~/.codex-inter-agent` in the same command. It contains retained identity, capability, logs, audit, and message data; delete it only as a separate explicit decision after stopping the host and taking any required backup.
 
 ## Manual installation
 

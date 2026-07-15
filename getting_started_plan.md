@@ -1,9 +1,9 @@
 # Getting Started Implementation Plan
 
 **Project:** Codex Inter-Agent Messaging Bridge  
-**Plan status:** Complete — Milestone 19 native Windows GUI installer accepted
+**Plan status:** In progress — Milestone 20 macOS installer and GitHub Actions validation
 **Architecture source:** CODEX_INTER_AGENT_MESSAGING_BRIDGE.md  
-**Next task:** None — Milestones 1–19 are complete
+**Next task:** 20.2 — Implement the shared macOS installer backend and durable per-user payload
 **Timezone for completion records:** Asia/Jerusalem
 
 ## How to use this plan
@@ -834,3 +834,46 @@
 - The wizard can install the official public CLI with consent or use a user-selected public CLI without copying private WindowsApps binaries.
 - The selected Codex data directory is existing, explicit, and used consistently for marketplace/plugin verification.
 - Automated and visible runtime checks prove the GUI, backend, isolated first install, refresh, failure path, and cleanup.
+
+---
+
+## Milestone 20 — macOS installer and GitHub Actions release validation
+
+- [ ] **Milestone 20 complete — Apple silicon and Intel users have a tested current-user installer, and GitHub Actions produces the validated macOS artifact.**
+
+### Tasks
+
+- [x] **20.1 Define the macOS installation, artifact, CI, signing, and notarization contract before implementation.** — Completed: 2026-07-15 11:41:20 +03:00 (Asia/Jerusalem)
+  - Completion evidence: architecture section 13.9 defines source and app entrypoints, durable allowlisted payload, public CLI discovery and pinned official recovery, current-user/no-sudo behavior, fail-closed marketplace ownership, universal bundle requirements, CI validation authority, and the unsigned-versus-signed/notarized release boundary.
+- [ ] **20.2 Implement the shared macOS installer backend and durable per-user payload.**
+  - Add dry-run, JSON, progress, explicit CLI/data/install-root selections, exact version validation, official CLI consent, staged payload build, per-user companion CLI installation, marketplace/plugin installation, verification, idempotent refresh, and failure cleanup.
+  - Reject Codex desktop/editor-private binaries and preserve all identity, owner, history, and retained-data boundaries.
+- [ ] **20.3 Add a double-clickable source installer and native macOS installer app.**
+  - Add executable `INSTALL.command` for downloaded source checkouts.
+  - Add an AppKit GUI with welcome/configuration, CLI and data-directory browsing, official CLI consent, progress, completion, cancellation, and actionable failure details.
+  - Bundle the allowlisted repository payload so the installed plugin does not depend on keeping the downloaded app or checkout.
+- [ ] **20.4 Add deterministic macOS installer tests and developer diagnostics.**
+  - Cover dry-run JSON, paths with spaces and Unicode, missing/incompatible/private CLI, official recovery planning, marketplace collision, staged-build failure, first install, refresh, GUI self-test, bundle resources, and cleanup.
+  - Keep tests isolated from the user's real Codex home, marketplace, npm prefix, bridge state, and histories.
+- [ ] **20.5 Add GitHub Actions macOS build, smoke, and artifact publication.**
+  - Run on the current supported `macos-15` hosted runner with pinned Node/npm and action majors.
+  - Run repository checks, macOS tests, the real manifest-pinned official Codex install, first install plus refresh, universal app build, bundle/launch/code-sign checks, archive creation, and artifact upload.
+  - Add concurrency and least-privilege workflow permissions; do not expose release secrets to pull requests.
+- [ ] **20.6 Add an optional protected Developer ID signing and Apple notarization path.**
+  - Require explicit protected secrets/variables and manual or tagged release authorization.
+  - Import the certificate through a temporary keychain, sign with hardened runtime and timestamp, submit with `notarytool`, staple, verify with `codesign`/`spctl`, upload the distinct notarized artifact, and clean credentials/keychain state.
+  - Keep ordinary CI useful and honest when Apple credentials are absent.
+- [ ] **20.7 Update installation, troubleshooting, maintenance, release, and evidence documentation.**
+  - Explain source versus app installation, Apple silicon/Intel support, prerequisites, Finder/Gatekeeper behavior for unsigned artifacts, notarized release identification, restart/new-task boundary, trusted identity, updates, uninstall, and retained data.
+- [ ] **20.8 Run local cross-platform-safe gates, push the workflow, observe the macOS run, fix failures, and record final evidence.**
+  - Run all Windows-safe repository/plugin/package checks locally without mutating the user's Codex state.
+  - Commit and push the implementation, monitor the GitHub Actions macOS job to a terminal result, inspect failed logs if needed, and verify the uploaded artifact metadata.
+  - Record exact commands, runner image/architecture, scenario counts, app/archive checks, cleanup, run URL, and any signing/notarization limitation.
+
+### Exit criteria
+
+- A source user can double-click `INSTALL.command`, and a release user can launch the native `.app`, without administrator privileges.
+- The tested installed plugin and CLI survive removal of the checkout/archive because their allowlisted source lives in per-user Application Support.
+- GitHub Actions proves the manifest-pinned real Codex first-install/refresh flow and uploads the same app archive it tested.
+- The artifact supports both Apple silicon and Intel, or the workflow fails without making a universal-support claim.
+- Unsigned, signed, and notarized states are clearly distinguished; Apple credentials are never required for ordinary validation or exposed to untrusted workflows.

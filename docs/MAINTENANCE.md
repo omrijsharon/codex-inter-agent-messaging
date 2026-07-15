@@ -7,9 +7,9 @@
 - Bridge owner protocol: `2`; signed descriptor schema: `3`
 - Codex CLI/app-server: exactly `0.144.2`, per `generated/codex/manifest.json`
 - Node.js 22.11+ and npm 10.9+
-- Release-validated OS: Windows
+- Release-validated OS: Windows locally; macOS 13+ through the `macos-15` GitHub Actions installer gate
 
-Linux and macOS are not release-validated. Portable Node/SQLite code is not sufficient: singleton process lifetime, permissions, native SQLite packaging, paths, and real app-server/plugin smoke must pass before support is claimed.
+Linux is not release-validated. macOS support is limited to the paths exercised by the hosted installer workflow: current-user installation, native dependency build, manifest-pinned Codex CLI/plugin commands, first install/refresh, native universal app, ad-hoc signature verification, and cleanup. Ordinary artifacts are not Developer ID signed or Apple-notarized.
 
 | Package line | Latest schema | Upgrade support                                           |
 | ------------ | ------------: | --------------------------------------------------------- |
@@ -60,7 +60,7 @@ Before upgrade, stop caller MCP clients and the host, create a hot backup at a n
 
 1. Synchronize package, lockfile, central version, plugin manifest/runtime, owner protocol, descriptor schema, store schema, MCP/app-server metadata, and release records.
 2. From `npm.cmd ci`, run format, lint, strict types, unit/integration/security/recovery/migration tests, coverage, schema drift, and production build.
-3. Build/validate the plugin; inspect relocatable runtime, forbidden-state/secret scan, clean-install smoke, marketplace metadata, and native dependency. Run `test:installer`, `test:installer:gui`, the isolated two-pass `smoke:installer`, and package smoke.
+3. Build/validate the plugin; inspect relocatable runtime, forbidden-state/secret scan, clean-install smoke, marketplace metadata, and native dependency. Run `test:installer`, `test:installer:gui`, the isolated two-pass `smoke:installer`, package smoke, and the hosted macOS installer workflow.
 4. Run three clean auto-starts, reuse, concurrent MCP start, crash recovery, ownership rejection, remote CLI connection, and every claimed real delivery surface.
 5. Verify logs, processes, handles, descriptors, locks, and temporary files after every runtime scenario.
 6. Update release notes, compatibility/rollback, handoff, evidence, and the plan ledger. Publication/tagging remains an explicit operator action.
@@ -72,3 +72,9 @@ Before upgrade, stop caller MCP clients and the host, create a hot backup at a n
 Run `npm.cmd run test:installer` for dry-run, Explorer-style PATH, desktop-only recovery planning, private-binary rejection, Unicode/spaced-path, collision, missing-command, failure-propagation, and batch exit-code coverage. Run `npm.cmd run test:installer:gui` for a real STA window launch plus cancel, success, failure, and custom-data-directory states. Run `npm.cmd run smoke:installer` before release; it uses isolated Codex/npm homes, installs the manifest-pinned official standalone CLI with no Codex command on PATH, performs first plugin install plus refresh, verifies state, removes its user-PATH test entry, and deletes the complete temporary environment.
 
 Do not add identity selection, agent registration, history adoption, host force-stop, data deletion, or Codex internal-state edits to the wizard. Those remain separate operator decisions. Do not update the local plugin by hand-editing Codex configuration; rebuild through repository scripts and reinstall through the supported plugin commands.
+
+### macOS installer maintenance
+
+`INSTALL.command` and the AppKit bundle both invoke `scripts/install-plugin-macos.sh`. `scripts/stage-macos-payload.sh` is the single allowlist used for durable source and app resources; additions must be reviewed for secrets and mirrored in installer tests. `npm run test:installer:macos` exercises static, dry-run, source-wizard, private-CLI, and collision contracts. `MACOS_SMOKE_CODEX=<pinned-codex> npm run smoke:installer:macos` performs real first-install and refresh in isolated Unicode/spaced homes. `npm run build:installer:macos` must produce a two-architecture app, pass bundle self-test and strict ad-hoc signature verification, and archive the tested app.
+
+The default Actions job uses no secrets and publishes a clearly named unsigned development artifact. The protected `sign-and-notarize` job runs only for a manual dispatch with `notarize=true`, repository variable `ENABLE_MACOS_NOTARIZATION=true`, and the `macos-release` environment. Required secrets are `MACOS_CERTIFICATE_P12_BASE64`, `MACOS_CERTIFICATE_PASSWORD`, `MACOS_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, and `APPLE_APP_SPECIFIC_PASSWORD`. Rotate credentials through GitHub environment administration, never repository files or logs. The job must retain hardened runtime, secure timestamp, `notarytool --wait`, stapling, `codesign`, and `spctl` checks.

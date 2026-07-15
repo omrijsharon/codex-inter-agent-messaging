@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+artifacts/
 .codex/
 .codex-inter-agent/
 *.sqlite3

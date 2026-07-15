@@ -18,6 +18,20 @@ For a read-only prerequisite and command-plan check:
 .\INSTALL.cmd -DryRun
 ```
 
+## Install on macOS
+
+The GitHub Actions release artifact contains **Codex Inter-Agent Messaging Installer.app**, a native universal Apple silicon/Intel installer. Move the app to a stable location such as `/Applications`, open it, choose the public Codex CLI and Codex data directory if needed, and select **Install**. A source checkout also provides the double-clickable **`INSTALL.command`** entrypoint.
+
+Ordinary CI produces an ad-hoc-signed, unsigned-for-distribution development artifact. macOS may require Control-click → **Open**, or **Open Anyway** in System Settings → Privacy & Security. Only an artifact whose filename ends in `-notarized.zip` and whose protected GitHub Actions notarization job passed should be treated as Developer ID signed and Apple-notarized.
+
+The macOS installer copies a reviewed payload to `~/Library/Application Support/Codex Inter-Agent Messaging`, so the downloaded ZIP, app, or checkout is not needed for plugin operation afterward. It installs without `sudo` and keeps identity/registration as separate operator steps.
+
+For a no-write source diagnostic:
+
+```bash
+./INSTALL.command --dry-run
+```
+
 Post-MVP asynchronous tools and their explicit anti-loop semantics are documented in [`docs/ASYNC_MESSAGING.md`](docs/ASYNC_MESSAGING.md).
 
 Authorized one-to-many fan-out, membership snapshots, partial outcomes, retries, and explicit synthesis are documented in [`docs/GROUP_MESSAGING.md`](docs/GROUP_MESSAGING.md).
@@ -27,7 +41,7 @@ Authorized one-to-many fan-out, membership snapshots, partial outcomes, retries,
 - Node.js 22.11 or newer
 - npm 10.9 or newer
 - Codex CLI/app-server matching the generated protocol manifest
-- Windows is the currently validated platform
+- Windows is locally release-validated; macOS 13+ is validated by the repository's `macos-15` GitHub Actions installer workflow
 
 Install exact dependencies:
 
@@ -58,6 +72,9 @@ npm.cmd run smoke:plugin        # clean-copy MCP/bootstrap smoke from a Unicode 
 npm.cmd run test:installer      # deterministic wizard, collision, path, and failure tests
 npm.cmd run test:installer:gui  # native GUI launch, cancel, success, and failure states
 npm.cmd run smoke:installer     # isolated first-install/reinstall/cleanup acceptance
+npm.cmd run test:installer:macos # static locally; full backend scenarios on macOS
+npm.cmd run smoke:installer:macos # real pinned-Codex first install/refresh on macOS
+npm.cmd run build:installer:macos # build universal app/archive on macOS
 npm.cmd run smoke:messaging     # bounded real synchronous participating-thread exchange
 npm.cmd run smoke:async         # bounded real asynchronous delivery plus group coverage
 npm.cmd run smoke:group         # explicit alias for the combined async/group real smoke

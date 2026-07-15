@@ -870,6 +870,18 @@ The user may select a public Codex CLI executable and an existing Codex data dir
 
 GUI acceptance uses a no-write test mode plus an isolated real installation. Tests cover Explorer-style environment inheritance, desktop-only detection, official CLI recovery planning, custom paths, cancellation, backend errors, first install, same-path refresh, and cleanup. Visible desktop verification is required when Windows UI automation is available; otherwise the GUI must still be launched, captured, and inspected with the limitation recorded.
 
+### 13.9 macOS installer and distribution contract
+
+macOS has two supported entrypoints. A source checkout provides an executable root-level `INSTALL.command`; a GitHub Actions release build provides `Codex Inter-Agent Messaging Installer.app` in a ZIP archive. Both invoke the same checked-in Bash backend and install for the current user without `sudo`. The app is a native AppKit wrapper with explicit Codex CLI and `CODEX_HOME` selections, optional consent to install the official standalone Codex CLI, bounded progress, cancellation before mutation, and actionable terminal success or failure state.
+
+The installer never registers an agent, chooses `BRIDGE_AGENT_ID`, adopts or replaces a history, stops a live host, deletes retained data, or edits Codex-owned history/session state. It rejects executables private to `Codex.app` or an editor extension. A public CLI is selected explicitly or discovered on the launch environment and conventional standalone path. It must expose the plugin command and match the exact reviewed version in `generated/codex/manifest.json`. With explicit consent, the backend downloads OpenAI's official `install.sh`, sets `CODEX_NON_INTERACTIVE`, `CODEX_INSTALL_DIR`, `CODEX_HOME`, and the manifest-pinned `CODEX_RELEASE`, then verifies the resulting public CLI before any plugin mutation.
+
+The downloaded checkout or installer app is not a runtime dependency. Before registering the marketplace, the backend copies an allowlisted, secret-free source payload into `~/Library/Application Support/Codex Inter-Agent Messaging/source`, installs locked dependencies there, builds and validates the relocatable plugin runtime, and installs the companion CLI under the same per-user application-support root. It exposes the CLI through `~/.local/bin` without requiring a system-wide npm prefix. The durable source is replaced only after its staged build validates. A same-path durable refresh is idempotent; an existing `codex-inter-agent-local` marketplace that resolves elsewhere is a hard conflict and is never silently removed or rebound.
+
+GitHub Actions on the current supported macOS runner is the release-validation authority when maintainers do not have local Mac hardware. The workflow runs deterministic backend tests, the repository verification suite, a real manifest-pinned Codex install, first install plus refresh in isolated homes, native app compilation, bundle/resource inspection, executable launch self-test, ad-hoc code-sign verification, archive creation, and cleanup auditing. It uploads the tested ZIP as the unsigned development artifact. Public Gatekeeper-friendly distribution is a separate, manually authorized release path: when protected Apple Developer secrets are configured, the app is signed with a Developer ID Application certificate using hardened runtime and a secure timestamp, submitted with `notarytool`, stapled, and verified. Pull-request jobs and ordinary branch pushes never receive signing credentials or claim notarization.
+
+The bundle is built as a universal Apple silicon/Intel application when the runner toolchain supports both targets. The workflow fails rather than silently publishing a single-architecture artifact under a universal name. Installation documentation must distinguish the tested unsigned artifact (which macOS may require the user to approve manually) from a successfully signed and notarized release. No release may be described as notarized unless the protected signing job completed and its verification passed.
+
 ---
 
 ## 14. Agent registration, provisioning, and lifecycle
@@ -964,22 +976,22 @@ Required controls:
 
 ## 17. Failure handling
 
-| Condition | Required behavior |
-|---|---|
-| Unknown recipient | Fail the tool call with valid agent suggestions. |
-| Sender thread is not registered | Reject; do not accept a model-supplied identity override. |
-| Recipient is busy | Queue until idle; do not steer by default. |
-| Recipient is paused/superseded | Fail or hold according to explicit operator policy; never wake a stale thread silently. |
-| `turn/start` rejected before acceptance | Retry only if classified transient. |
-| App-server overloaded | Retry with exponential backoff and jitter. |
-| Recipient turn failed | Return structured failure with message and turn IDs. |
-| Recipient turn interrupted | Mark interrupted; do not fabricate a reply. |
-| Tool runtime loses connection after `turn/start` | Reconcile by message/client ID before retrying. |
-| Duplicate tool invocation | Return the existing message/result for the same idempotency key when available. |
-| Synchronous call cycle | Reject or convert to deferred asynchronous delivery. |
-| Source turn is cancelled while recipient runs | Let recipient outcome be persisted; stop trying to answer a cleared tool request. Make the result retrievable later. |
-| Approval is required | Apply configured approval policy; never auto-elevate based only on peer request. |
-| Context window exceeded | Return `RECIPIENT_CONTEXT_EXHAUSTED`; compact only under explicit operator policy, and never silently fork, clear, roll back, or recreate the agent. |
+| Condition                                        | Required behavior                                                                                                                                    |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unknown recipient                                | Fail the tool call with valid agent suggestions.                                                                                                     |
+| Sender thread is not registered                  | Reject; do not accept a model-supplied identity override.                                                                                            |
+| Recipient is busy                                | Queue until idle; do not steer by default.                                                                                                           |
+| Recipient is paused/superseded                   | Fail or hold according to explicit operator policy; never wake a stale thread silently.                                                              |
+| `turn/start` rejected before acceptance          | Retry only if classified transient.                                                                                                                  |
+| App-server overloaded                            | Retry with exponential backoff and jitter.                                                                                                           |
+| Recipient turn failed                            | Return structured failure with message and turn IDs.                                                                                                 |
+| Recipient turn interrupted                       | Mark interrupted; do not fabricate a reply.                                                                                                          |
+| Tool runtime loses connection after `turn/start` | Reconcile by message/client ID before retrying.                                                                                                      |
+| Duplicate tool invocation                        | Return the existing message/result for the same idempotency key when available.                                                                      |
+| Synchronous call cycle                           | Reject or convert to deferred asynchronous delivery.                                                                                                 |
+| Source turn is cancelled while recipient runs    | Let recipient outcome be persisted; stop trying to answer a cleared tool request. Make the result retrievable later.                                 |
+| Approval is required                             | Apply configured approval policy; never auto-elevate based only on peer request.                                                                     |
+| Context window exceeded                          | Return `RECIPIENT_CONTEXT_EXHAUSTED`; compact only under explicit operator policy, and never silently fork, clear, roll back, or recreate the agent. |
 
 ### 17.1 Saturated recipient policy
 

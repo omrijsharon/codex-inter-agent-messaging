@@ -2,6 +2,9 @@
 
 ## Installation wizard update (unreleased)
 
+- Adds a macOS 13+ current-user installer: double-clickable source launcher, native AppKit `.app`, durable Application Support payload, per-user CLI link, exact Codex recovery, and fail-closed marketplace ownership.
+- Adds a `macos-15` GitHub Actions gate that installs the real pinned Codex CLI, runs first install plus refresh, builds and tests a universal Intel/Apple silicon app, ad-hoc signs it, and uploads a clearly unsigned artifact.
+- Adds an optional protected Developer ID signing/notarization job using hardened runtime, `notarytool`, stapling, and Gatekeeper verification; ordinary CI never receives Apple credentials or claims notarization.
 - Adds root `INSTALL.cmd` plus an idempotent PowerShell wizard for locked build/validation, current-user CLI installation, repository marketplace registration, plugin installation/refresh, and post-install verification.
 - Replaces the default console experience with a native Windows GUI that detects the desktop Appx package, supports public CLI and Codex data-directory selection, and offers a manifest-pinned official CLI install when desktop Codex is present without a public command.
 - Rejects WindowsApps/editor-private binaries, validates exact Codex protocol compatibility, and preserves console/JSON/dry-run automation through explicit launcher arguments.
@@ -28,7 +31,7 @@ See [`evidence/authoritative-owner-integration.md`](evidence/authoritative-owner
 
 ## v0.1.0 — MVP
 
-Current status: v0.4.0 plus the unreleased installation-wizard update is locally validated on Windows with Codex CLI `0.144.2`.
+Current status: v0.4.0 plus the unreleased installation-wizard update is locally validated on Windows with Codex CLI `0.144.2`; macOS acceptance is performed by the repository's hosted installer workflow.
 
 Highlights:
 

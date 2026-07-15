@@ -35,4 +35,11 @@
 - Acceptance evidence: `docs/evidence/authoritative-owner-integration.md` and `docs/evidence/v0.4-final-verification.md`.
 - Release artifact validation: `npm run plugin:validate`, `npm run smoke:plugin`, and `npm run smoke:package`.
 
+## Unreleased cross-platform installer record
+
+- Adds the Windows native GUI and macOS 13+ native installer surfaces without changing package/plugin version `0.4.0`.
+- macOS artifacts are built and tested on GitHub's `macos-15` runner against manifest-pinned Codex CLI `0.144.2`.
+- Ordinary artifacts are explicitly unsigned for public distribution; a distinct protected workflow can produce a Developer ID signed and Apple-notarized artifact when maintainer credentials are configured.
+- Acceptance evidence: `docs/evidence/macos-installer.md` and `docs/evidence/installation-wizard.md`.
+
 This file is the repository-local release record. No remote tag or publication is implied.

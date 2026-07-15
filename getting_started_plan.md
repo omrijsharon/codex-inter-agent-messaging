@@ -848,6 +848,9 @@
 - [ ] **20.2 Implement the shared macOS installer backend and durable per-user payload.**
   - Add dry-run, JSON, progress, explicit CLI/data/install-root selections, exact version validation, official CLI consent, staged payload build, per-user companion CLI installation, marketplace/plugin installation, verification, idempotent refresh, and failure cleanup.
   - Reject Codex desktop/editor-private binaries and preserve all identity, owner, history, and retained-data boundaries.
+- [ ] **20.2a Quote the installed CLI invocation after the Unicode/spaced-home smoke reaches the durable install.**
+  - Preserve the intentional `User Home ü` acceptance path and invoke the `~/.local/bin` link as one executable path when verifying its version.
+  - Re-run first install and refresh on the hosted macOS runner before checking the backend task.
 - [ ] **20.3 Add a double-clickable source installer and native macOS installer app.**
   - Add executable `INSTALL.command` for downloaded source checkouts.
   - Add an AppKit GUI with welcome/configuration, CLI and data-directory browsing, official CLI consent, progress, completion, cancellation, and actionable failure details.

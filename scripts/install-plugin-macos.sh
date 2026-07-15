@@ -373,7 +373,7 @@ rm -rf "$install_root/cli"
 cli_target="$install_root/cli/node_modules/.bin/codex-inter-agent"
 [[ -x "$cli_target" ]] || fail "npm completed but the companion CLI was not found at '$cli_target'."
 ln -sfn "$cli_target" "$HOME/.local/bin/codex-inter-agent"
-installed_cli_version="$($HOME/.local/bin/codex-inter-agent --version)"
+installed_cli_version="$("$HOME/.local/bin/codex-inter-agent" --version)"
 [[ "$installed_cli_version" == "$package_version" ]] || fail "Installed CLI version '$installed_cli_version' does not match '$package_version'."
 
 current_step="Register marketplace and plugin"

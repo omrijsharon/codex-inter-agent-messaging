@@ -1,10 +1,16 @@
 @echo off
 setlocal
-title Codex Inter-Agent Messaging Installer
+
+if "%~1"=="" (
+  start "" powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File "%~dp0scripts\install-wizard.ps1" -RepositoryRoot "%~dp0." -HideConsole
+  exit /b 0
+)
+
+title Codex Inter-Agent Messaging Installer - Console Mode
 
 echo.
-echo Codex Inter-Agent Messaging Installer
-echo =====================================
+echo Codex Inter-Agent Messaging Installer - Console Mode
+echo ====================================================
 echo.
 
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\install-plugin.ps1" %*

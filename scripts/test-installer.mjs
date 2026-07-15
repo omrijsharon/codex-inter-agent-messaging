@@ -16,6 +16,7 @@ const powershell = path.join(
 );
 const commandPrompt = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "cmd.exe");
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "codex-installer-tests-"));
+let publicCodexPath;
 
 function run(file, arguments_, options = {}) {
   return new Promise((resolve, reject) => {
@@ -35,9 +36,23 @@ function run(file, arguments_, options = {}) {
 }
 
 async function runInstaller(arguments_, environment = {}) {
+  const effectiveArguments =
+    publicCodexPath &&
+    !arguments_.includes("-CodexExecutable") &&
+    !arguments_.includes("-InstallCodexCli")
+      ? [...arguments_, "-CodexExecutable", publicCodexPath]
+      : arguments_;
   return run(
     powershell,
-    ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", installer, ...arguments_],
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      installer,
+      ...effectiveArguments,
+    ],
     { env: { ...process.env, ...environment } },
   );
 }
@@ -49,6 +64,14 @@ function parseJson(output) {
 let operationError;
 let cleanupError;
 try {
+  const whereCodex = await run("where.exe", ["codex"]);
+  assert.equal(whereCodex.code, 0, whereCodex.stderr || whereCodex.stdout);
+  const sourceCodex = whereCodex.stdout.split(/\r?\n/u).find((line) => line.trim().length > 0);
+  assert.ok(sourceCodex);
+  publicCodexPath = path.join(temporaryRoot, "public Codex CLI Ω", "codex.exe");
+  await mkdir(path.dirname(publicCodexPath), { recursive: true });
+  await cp(sourceCodex.trim(), publicCodexPath);
+
   const isolatedCodexHome = path.join(temporaryRoot, "dry-run codex home");
   await mkdir(isolatedCodexHome, { recursive: true });
   const normal = await runInstaller(["-DryRun", "-Json"], { CODEX_HOME: isolatedCodexHome });
@@ -58,6 +81,8 @@ try {
   assert.equal(normalResult.mode, "dry-run");
   assert.equal(normalResult.changesMade, false);
   assert.equal(normalResult.commands.length, 6);
+  assert.equal(normalResult.codexExecutable, publicCodexPath);
+  assert.equal(normalResult.codexHome, isolatedCodexHome);
 
   const unicodeRoot = path.join(temporaryRoot, "Downloaded Ω repository with spaces");
   const unicodeCodexHome = path.join(temporaryRoot, "unicode codex home");
@@ -69,6 +94,7 @@ try {
     "plugins/codex-inter-agent-messaging/.codex-plugin/plugin.json",
     "scripts/build-plugin.mjs",
     "scripts/validate-plugin.mjs",
+    "generated/codex/manifest.json",
   ]) {
     const destination = path.join(unicodeRoot, relative);
     await mkdir(path.dirname(destination), { recursive: true });
@@ -113,6 +139,37 @@ try {
   assert.equal(missingResult.status, "failed");
   assert.match(missingResult.error, /Required command 'node'/u);
 
+  const explorerCodexHome = path.join(temporaryRoot, "desktop-only codex home");
+  await mkdir(explorerCodexHome, { recursive: true });
+  const nodeDirectory = path.dirname(process.execPath);
+  const explorerPath = [
+    nodeDirectory,
+    path.join(process.env.SystemRoot ?? "C:\\Windows", "System32"),
+    process.env.SystemRoot ?? "C:\\Windows",
+    path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0"),
+  ].join(path.delimiter);
+  const recoveryPlan = await runInstaller(
+    ["-DryRun", "-Json", "-InstallCodexCli", "-CodexHome", explorerCodexHome],
+    { PATH: explorerPath, LOCALAPPDATA: path.join(temporaryRoot, "local app data") },
+  );
+  assert.equal(recoveryPlan.code, 0, recoveryPlan.stderr || recoveryPlan.stdout);
+  const recoveryResult = parseJson(recoveryPlan.stdout);
+  assert.equal(recoveryResult.officialCliInstallPlanned, true);
+  assert.equal(recoveryResult.commands.length, 7);
+  assert.match(recoveryResult.codexExecutable, /Programs\\OpenAI\\Codex\\bin\\codex\.exe$/u);
+
+  const privateSelection = await runInstaller(
+    [
+      "-DryRun",
+      "-Json",
+      "-CodexExecutable",
+      "C:\\Program Files\\WindowsApps\\OpenAI.Codex_1.0.0.0_x64__id\\app\\resources\\codex.exe",
+    ],
+    { CODEX_HOME: isolatedCodexHome },
+  );
+  assert.equal(privateSelection.code, 1);
+  assert.match(parseJson(privateSelection.stdout).error, /does not exist|private/u);
+
   const shimDirectory = path.join(temporaryRoot, "command shims");
   const shimPrefix = path.join(temporaryRoot, "shim npm prefix");
   const failureCodexHome = path.join(temporaryRoot, "failure codex home");
@@ -150,24 +207,32 @@ try {
   assert.match(failedResult.error, /exit code 23/u);
 
   const batch = await readFile(path.join(root, "INSTALL.cmd"), "utf8");
+  assert.match(batch, /scripts\\install-wizard\.ps1/u);
+  assert.match(batch, /if "%~1"==""/u);
+  assert.match(batch, /-HideConsole/u);
+  assert.doesNotMatch(batch, /-WindowStyle Hidden/u);
   assert.match(batch, /%~dp0scripts\\install-plugin\.ps1/u);
   assert.match(batch, /INSTALL_EXIT_CODE=%ERRORLEVEL%/u);
   assert.match(batch, /exit \/b %INSTALL_EXIT_CODE%/u);
   const batchCodexHome = path.join(temporaryRoot, "batch codex home");
   await mkdir(batchCodexHome, { recursive: true });
-  const batchRun = await run(commandPrompt, ["/d", "/c", "INSTALL.cmd", "-DryRun", "-Json"], {
-    env: {
-      ...process.env,
-      CODEX_HOME: batchCodexHome,
-      CODEX_INTER_AGENT_INSTALL_NO_PAUSE: "1",
+  const batchRun = await run(
+    commandPrompt,
+    ["/d", "/c", "INSTALL.cmd", "-DryRun", "-Json", "-CodexExecutable", publicCodexPath],
+    {
+      env: {
+        ...process.env,
+        CODEX_HOME: batchCodexHome,
+        CODEX_INTER_AGENT_INSTALL_NO_PAUSE: "1",
+      },
     },
-  });
+  );
   assert.equal(batchRun.code, 0, batchRun.stderr || batchRun.stdout);
   assert.match(batchRun.stdout, /"status":\s+"passed"/u);
   assert.match(batchRun.stdout, /Installer finished successfully/u);
 
   process.stdout.write(
-    `${JSON.stringify({ status: "passed", scenarios: ["dry-run", "unicode-path", "marketplace-conflict", "missing-prerequisite", "command-failure", "batch-entrypoint"] })}\n`,
+    `${JSON.stringify({ status: "passed", scenarios: ["dry-run", "unicode-path", "marketplace-conflict", "missing-prerequisite", "desktop-only-recovery-plan", "private-binary-rejection", "command-failure", "batch-entrypoint"] })}\n`,
   );
 } catch (error) {
   operationError = error;

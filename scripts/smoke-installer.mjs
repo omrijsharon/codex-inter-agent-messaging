@@ -13,11 +13,21 @@ const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "codex-installer-smok
 const codexHome = path.join(temporaryRoot, "Codex home Ω with spaces");
 const npmPrefix = path.join(temporaryRoot, "npm prefix Ω with spaces");
 const npmCache = path.join(temporaryRoot, "npm cache Ω with spaces");
+const localAppData = path.join(temporaryRoot, "local app data with spaces");
+const nodeDirectory = path.dirname(process.execPath);
+const isolatedPath = [
+  nodeDirectory,
+  path.join(systemRoot, "System32"),
+  systemRoot,
+  path.join(systemRoot, "System32", "WindowsPowerShell", "v1.0"),
+].join(path.delimiter);
 const environment = {
   ...process.env,
   CODEX_HOME: codexHome,
   NPM_CONFIG_PREFIX: npmPrefix,
   NPM_CONFIG_CACHE: npmCache,
+  LOCALAPPDATA: localAppData,
+  PATH: isolatedPath,
 };
 
 function run(file, arguments_, options = {}) {
@@ -47,6 +57,7 @@ async function install() {
     "-File",
     installer,
     "-Json",
+    "-InstallCodexCli",
   ]);
   assert.equal(result.code, 0, result.stderr || result.stdout);
   return JSON.parse(result.stdout.trim());
@@ -86,6 +97,19 @@ async function findRuntimeArtifacts(directory) {
   return found;
 }
 
+async function removeIsolatedInstallFromUserPath() {
+  const visibleBin = path.join(localAppData, "Programs", "OpenAI", "Codex", "bin");
+  const cleanupScript = [
+    "$target=$env:CODEX_SMOKE_VISIBLE_BIN",
+    "$current=[Environment]::GetEnvironmentVariable('Path','User')",
+    "$kept=@(($current -split ';') | Where-Object { -not [string]::Equals($_,$target,[StringComparison]::OrdinalIgnoreCase) })",
+    "[Environment]::SetEnvironmentVariable('Path',($kept -join ';'),'User')",
+  ].join("; ");
+  return run(powershell, ["-NoLogo", "-NoProfile", "-Command", cleanupScript], {
+    env: { ...environment, CODEX_SMOKE_VISIBLE_BIN: visibleBin },
+  });
+}
+
 let operationError;
 let cleanupError;
 let summary;
@@ -93,12 +117,14 @@ try {
   await mkdir(codexHome, { recursive: true });
   await mkdir(npmPrefix, { recursive: true });
   await mkdir(npmCache, { recursive: true });
+  await mkdir(localAppData, { recursive: true });
   const first = await install();
   assert.equal(first.status, "passed");
   assert.equal(first.mode, "install");
   assert.equal(first.marketplaceAlreadyAdded, false);
   assert.equal(first.plugin, "codex-inter-agent-messaging@codex-inter-agent-local");
-  assert.equal(first.completedSteps.length, 6);
+  assert.equal(first.completedSteps.length, 7);
+  assert.match(first.codexExecutable, /Programs\\OpenAI\\Codex\\bin\\codex\.exe$/u);
   await access(
     path.join(first.pluginInstalledPath, "runtime", "dist", "messaging", "mcp_server.js"),
   );
@@ -107,12 +133,13 @@ try {
   assert.equal(second.status, "passed");
   assert.equal(second.marketplaceAlreadyAdded, true);
   assert.equal(second.pluginInstalledPath, first.pluginInstalledPath);
+  assert.equal(second.completedSteps.length, 6);
 
-  const marketplaceList = await run("codex", ["plugin", "marketplace", "list"]);
+  const marketplaceList = await run(first.codexExecutable, ["plugin", "marketplace", "list"]);
   assert.equal(marketplaceList.code, 0, marketplaceList.stderr);
   assert.match(marketplaceList.stdout, /codex-inter-agent-local/u);
 
-  const pluginList = await run("codex", ["plugin", "list"]);
+  const pluginList = await run(first.codexExecutable, ["plugin", "list"]);
   assert.equal(pluginList.code, 0, pluginList.stderr);
   assert.match(pluginList.stdout, /codex-inter-agent-messaging@codex-inter-agent-local/u);
   assert.match(pluginList.stdout, /installed, enabled/u);
@@ -130,6 +157,7 @@ try {
     status: "passed",
     firstInstall: true,
     idempotentRefresh: true,
+    officialCliRecovery: true,
     pluginEnabled: true,
     cliVersion: first.cliVersion,
     isolatedPath: "<temporary path with spaces and Unicode>",
@@ -139,6 +167,8 @@ try {
   operationError = error;
 } finally {
   try {
+    const pathCleanup = await removeIsolatedInstallFromUserPath();
+    assert.equal(pathCleanup.code, 0, pathCleanup.stderr || pathCleanup.stdout);
     await rm(temporaryRoot, { recursive: true, force: true });
   } catch (error) {
     cleanupError = error;

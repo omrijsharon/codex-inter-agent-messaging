@@ -1,9 +1,9 @@
 # Getting Started Implementation Plan
 
 **Project:** Codex Inter-Agent Messaging Bridge  
-**Plan status:** Complete — Milestone 18 Windows installation wizard accepted
+**Plan status:** Complete — Milestone 19 native Windows GUI installer accepted
 **Architecture source:** CODEX_INTER_AGENT_MESSAGING_BRIDGE.md  
-**Next task:** None — Milestones 1–18 are complete
+**Next task:** None — Milestones 1–19 are complete
 **Timezone for completion records:** Asia/Jerusalem
 
 ## How to use this plan
@@ -790,3 +790,47 @@
 - The installer is safe to rerun, does not overwrite a different marketplace with the same name, and never configures model-supplied identity.
 - A temporary clean environment proves plugin discovery, CLI availability, path portability, reinstall behavior, and cleanup.
 - Manual installation and recovery remain documented for scripted environments and troubleshooting.
+
+---
+
+## Milestone 19 — Native Windows GUI installer and desktop-aware Codex discovery
+
+- [x] **Milestone 19 complete — Double-clicking the root installer opens a native graphical wizard that correctly supports Codex desktop-only installations.** — Completed: 2026-07-15 10:08:52 +03:00 (Asia/Jerusalem)
+
+### Tasks
+
+- [x] **19.1 Reproduce the reported desktop-only failure and define the corrected GUI installation contract.** — Completed: 2026-07-15 09:33:23 +03:00 (Asia/Jerusalem)
+  - Completion evidence: an Explorer-equivalent `PATH` reproduced the screenshot exactly with `Required command 'codex' was not found`. `Get-AppxPackage OpenAI.Codex` found desktop package `26.707.9981.0`; its private `app\resources\codex.exe` is not directly executable outside package context. The official standalone installer completed in an isolated home, returned Codex CLI `0.144.4`, exposed the plugin command, and cleaned all temporary state. Architecture section 13.8 records the supported GUI, discovery, selection, and recovery behavior.
+- [x] **19.2 Add desktop-aware Codex CLI discovery and recovery to the installer backend.** — Completed: 2026-07-15 10:04:30 +03:00 (Asia/Jerusalem)
+  - Accept an explicit public Codex CLI executable and an explicit existing `CODEX_HOME` directory.
+  - Discover `codex` on `PATH` and the documented standalone Windows install location; detect the desktop Appx package only for user guidance.
+  - When the desktop app exists but no public CLI is usable, offer the official non-interactive standalone Codex installer instead of invoking or copying its private packaged executable.
+  - Preserve noninteractive, dry-run, JSON, error-propagation, marketplace-collision, and trusted-identity boundaries.
+  - Completion evidence: `install-plugin.ps1` accepts explicit public CLI/data paths, rejects WindowsApps/editor-private binaries, detects PATH/standalone candidates, distinguishes the Appx desktop package, and offers official recovery. Recovery is opt-in, pinned to manifest version 0.144.2, retains the required package cache in selected `CODEX_HOME`, uses a Windows short alias for the upstream tar Unicode limitation, validates the plugin command/version, and preserves dry-run/JSON/error/collision behavior.
+- [x] **19.3 Replace the default console flow with a native Windows GUI wizard.** — Completed: 2026-07-15 10:04:30 +03:00 (Asia/Jerusalem)
+  - Provide welcome/configuration, installation progress, completion, and actionable failure states.
+  - Let the user select a public Codex CLI executable and Codex data directory, with safe defaults and validation.
+  - Keep the console backend available through an explicit switch for automation and diagnostics.
+  - Completion evidence: double-click/no-argument `INSTALL.cmd` launches a styled native 780x600 WPF setup window without a terminal workflow. It provides desktop/CLI detection, executable and data-directory Browse controls, official CLI consent, progress, completion, detailed failure, and cancellation. Explicit launcher arguments retain the console backend.
+- [x] **19.4 Add deterministic tests for discovery, selection, GUI launch, and failure recovery.** — Completed: 2026-07-15 10:04:30 +03:00 (Asia/Jerusalem)
+  - Cover Explorer-style `PATH`, desktop-only detection, official CLI recovery planning, custom CLI/data paths containing spaces and Unicode, cancellation, invalid selections, backend failure display, and batch routing.
+  - Add a developer screenshot/test mode that performs no installation and exits cleanly.
+  - Completion evidence: `test:installer` passes eight scenarios: dry-run, Unicode path, marketplace collision, missing prerequisite, Explorer-PATH desktop-only recovery plan, private binary rejection, command failure, and batch routing. `test:installer:gui` launches real STA windows and passes visible launch/cancel, success, failure, and custom Unicode/spaced Codex-home states. Test mode produces machine-readable view state without writes.
+- [x] **19.5 Run bounded real-runtime GUI and isolated installation smoke tests.** — Completed: 2026-07-15 10:04:30 +03:00 (Asia/Jerusalem)
+  - Launch the actual wizard window, inspect its visible controls and status text, and exercise a non-mutating test-mode flow.
+  - Complete a clean isolated install and refresh using an official standalone CLI outside `PATH`, then verify plugin/CLI state and cleanup.
+  - Completion evidence: the actual GUI was launched and captured at 780x600. Visual inspection found and corrected Windows PowerShell 5.1 mojibake, and the clean recapture showed correct controls/text. Computer Use was attempted but its native pipe was unavailable, so the documented capture fallback was used. The final isolated smoke installed official Codex 0.144.2 with no Codex on PATH, installed/refreshed the plugin, verified CLI/plugin state, removed its user-PATH entry and temporary tree, and returned `cleanup: clean`.
+- [x] **19.6 Update README, installation, troubleshooting, maintenance, and evidence documentation.** — Completed: 2026-07-15 10:04:30 +03:00 (Asia/Jerusalem)
+  - Explain the desktop app versus public CLI distinction, GUI selections, automatic official CLI recovery, console diagnostics, restart/new-task boundary, and uninstall behavior.
+  - Completion evidence: README and installation/troubleshooting/maintenance/release/evidence docs now lead with the GUI, distinguish desktop Appx from a public CLI, document selections and pinned official recovery, retain console diagnostics, and preserve identity, new-task, upgrade, uninstall, and unsupported-owner boundaries.
+- [x] **19.7 Run all repository, plugin, installer, schema, package, and cleanup gates and audit the plan ledger.** — Completed: 2026-07-15 10:08:52 +03:00 (Asia/Jerusalem)
+  - Completion evidence: `verify:all` passed Prettier, ESLint, strict TypeScript, 93 unit tests, Codex 0.144.2 schema drift (1,008 files, pinned digest), eight backend installer scenarios, four real GUI state scenarios, 12 integration tests, and production build. Coverage passed all 105 tests at 76.19% lines. Repository and official plugin validation, 13-tool plugin smoke, three-command package smoke, and the final pinned official-CLI first-install/refresh smoke all passed. Final audits found no test processes, temp trees, PATH entries, archives, diff whitespace errors, or unrelated worktree changes.
+- [x] **19.7a Correct no-argument batch-launch visibility and trailing-directory-separator handling found by the final exact launcher probe.** — Completed: 2026-07-15 10:12:56 +03:00 (Asia/Jerusalem)
+  - Completion evidence: `-WindowStyle Hidden` was replaced with targeted console-only hiding so the WPF window remains visible. The batch path now uses `%~dp0.` so its trailing separator cannot escape the closing native argument quote. An exact `cmd.exe /d /c INSTALL.cmd` run returned launcher exit 0, created the visible titled setup window, and handled a normal window close without starting installation or leaving a process.
+
+### Exit criteria
+
+- A desktop-only user sees a graphical installer and is not incorrectly told that Codex is absent.
+- The wizard can install the official public CLI with consent or use a user-selected public CLI without copying private WindowsApps binaries.
+- The selected Codex data directory is existing, explicit, and used consistently for marketplace/plugin verification.
+- Automated and visible runtime checks prove the GUI, backend, isolated first install, refresh, failure path, and cleanup.

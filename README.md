@@ -8,7 +8,7 @@ Setup and operations: [`docs/INSTALL.md`](docs/INSTALL.md), [`docs/OPERATIONS.md
 
 ## Install on Windows
 
-After downloading or cloning the repository, double-click **`INSTALL.cmd`** in the repository root. The wizard checks Node.js, npm, and Codex; builds and validates the relocatable runtime; installs the `codex-inter-agent` CLI; registers the repository marketplace; and installs or refreshes the enabled plugin. It is safe to rerun from the same repository path.
+After downloading or cloning the repository, double-click **`INSTALL.cmd`** in the repository root. A native Windows setup window detects the Codex desktop app, lets you select the public Codex CLI and Codex data directory, and offers to install the repository-pinned official CLI when only the desktop app is present. It then builds and validates the relocatable runtime, installs the `codex-inter-agent` CLI, registers the repository marketplace, and installs or refreshes the enabled plugin. It is safe to rerun from the same repository path.
 
 The installer does not choose agent identities or register histories. After it succeeds, open a new Codex task and follow [`docs/INSTALL.md`](docs/INSTALL.md) to set trusted `BRIDGE_AGENT_ID` values, register participating histories, and launch them through `codex-inter-agent connect`.
 
@@ -56,6 +56,7 @@ npm.cmd run plugin:build        # assemble the relocatable production plugin run
 npm.cmd run plugin:validate     # validate manifest, marketplace, contents, and secret hygiene
 npm.cmd run smoke:plugin        # clean-copy MCP/bootstrap smoke from a Unicode path
 npm.cmd run test:installer      # deterministic wizard, collision, path, and failure tests
+npm.cmd run test:installer:gui  # native GUI launch, cancel, success, and failure states
 npm.cmd run smoke:installer     # isolated first-install/reinstall/cleanup acceptance
 npm.cmd run smoke:messaging     # bounded real synchronous participating-thread exchange
 npm.cmd run smoke:async         # bounded real asynchronous delivery plus group coverage

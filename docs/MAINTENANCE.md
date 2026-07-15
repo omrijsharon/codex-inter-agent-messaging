@@ -60,15 +60,15 @@ Before upgrade, stop caller MCP clients and the host, create a hot backup at a n
 
 1. Synchronize package, lockfile, central version, plugin manifest/runtime, owner protocol, descriptor schema, store schema, MCP/app-server metadata, and release records.
 2. From `npm.cmd ci`, run format, lint, strict types, unit/integration/security/recovery/migration tests, coverage, schema drift, and production build.
-3. Build/validate the plugin; inspect relocatable runtime, forbidden-state/secret scan, clean-install smoke, marketplace metadata, and native dependency. Run `test:installer`, the isolated two-pass `smoke:installer`, and package smoke.
+3. Build/validate the plugin; inspect relocatable runtime, forbidden-state/secret scan, clean-install smoke, marketplace metadata, and native dependency. Run `test:installer`, `test:installer:gui`, the isolated two-pass `smoke:installer`, and package smoke.
 4. Run three clean auto-starts, reuse, concurrent MCP start, crash recovery, ownership rejection, remote CLI connection, and every claimed real delivery surface.
 5. Verify logs, processes, handles, descriptors, locks, and temporary files after every runtime scenario.
 6. Update release notes, compatibility/rollback, handoff, evidence, and the plan ledger. Publication/tagging remains an explicit operator action.
 
 ## Installer maintenance
 
-`INSTALL.cmd` is intentionally a small stable launcher; installation logic lives in `scripts/install-plugin.ps1`. Keep its six-step command plan synchronized with package scripts, the marketplace name, plugin selector, minimum runtimes, and uninstall documentation. Installation must remain idempotent for one repository path and fail closed when the same marketplace name resolves elsewhere.
+`INSTALL.cmd` is intentionally a small stable launcher. No arguments opens `scripts/install-wizard.ps1`; explicit arguments retain console/automation compatibility through `scripts/install-plugin.ps1`. Keep both surfaces synchronized with the six plugin steps, optional official CLI recovery step, manifest-pinned Codex version, marketplace name, plugin selector, minimum runtimes, and uninstall documentation. Installation must remain idempotent for one repository path and fail closed when the same marketplace name resolves elsewhere.
 
-Run `npm.cmd run test:installer` for dry-run, Unicode/spaced-path, collision, missing-command, failure-propagation, and batch exit-code coverage. Run `npm.cmd run smoke:installer` before release; it uses isolated Codex/npm homes, performs first install plus refresh, verifies plugin/CLI state, and removes the complete temporary environment. Review for installer-owned processes or temporary directories afterward.
+Run `npm.cmd run test:installer` for dry-run, Explorer-style PATH, desktop-only recovery planning, private-binary rejection, Unicode/spaced-path, collision, missing-command, failure-propagation, and batch exit-code coverage. Run `npm.cmd run test:installer:gui` for a real STA window launch plus cancel, success, failure, and custom-data-directory states. Run `npm.cmd run smoke:installer` before release; it uses isolated Codex/npm homes, installs the manifest-pinned official standalone CLI with no Codex command on PATH, performs first plugin install plus refresh, verifies state, removes its user-PATH test entry, and deletes the complete temporary environment.
 
 Do not add identity selection, agent registration, history adoption, host force-stop, data deletion, or Codex internal-state edits to the wizard. Those remain separate operator decisions. Do not update the local plugin by hand-editing Codex configuration; rebuild through repository scripts and reinstall through the supported plugin commands.

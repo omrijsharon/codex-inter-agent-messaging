@@ -858,6 +858,18 @@ Installation does not register agents, choose `BRIDGE_AGENT_ID`, bind or replace
 
 The wizard exposes a non-mutating dry-run/plan mode for deterministic diagnostics and tests. Installer validation uses isolated Codex and npm homes, including first install, same-path refresh, conflicting marketplace, path portability, error propagation, and cleanup. It must not use production credentials or retain capability tokens, descriptors, locks, databases, logs, package archives, or child processes after the test.
 
+### 13.8 Native GUI and Codex desktop discovery contract
+
+Double-clicking `INSTALL.cmd` opens a native Windows graphical wizard by default. The console backend remains available only through explicit automation or diagnostic switches. The GUI presents the selected public Codex CLI, Codex data directory, prerequisite status, bounded installation progress, completion guidance, and actionable failure details without exposing credentials or peer content.
+
+The Windows desktop Appx package and the public Codex CLI are separate installation surfaces. The wizard may detect `OpenAI.Codex` to confirm that the desktop app exists, but it must not invoke, copy, patch, or depend on the package-private `app\resources\codex.exe`. A usable public CLI is resolved in this order: an explicit user-selected executable, `codex` on the launcher's effective `PATH`, then the documented standalone location under `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin`. Every candidate must successfully return a version and expose the plugin command before it is accepted.
+
+If the desktop app exists but no compatible public CLI is usable, the GUI offers to install the official standalone Codex CLI non-interactively into its documented per-user location. This networked recovery is opt-in and is never performed by dry-run or test mode. The requested release is the exact reviewed version in `generated/codex/manifest.json`, not an unreviewed moving `latest`; existing and newly installed CLIs must match it and expose the plugin command. The installer uses the official OpenAI endpoint and fails closed if installation or validation fails. It must not substitute a VS Code extension's private binary or a copied WindowsApps binary as a durable installation.
+
+The user may select a public Codex CLI executable and an existing Codex data directory. The data directory defaults to `%USERPROFILE%\.codex`, matching the Windows desktop app. The backend applies it through `CODEX_HOME` only for the installer and its child processes; it does not persistently rewrite the user's environment. The official standalone installer retains its required package cache there and may access the same directory through a Windows short-path alias to avoid its bundled tar Unicode-path limitation. Paths with spaces and non-ASCII characters are supported, and invalid or inaccessible selections are rejected before mutation.
+
+GUI acceptance uses a no-write test mode plus an isolated real installation. Tests cover Explorer-style environment inheritance, desktop-only detection, official CLI recovery planning, custom paths, cancellation, backend errors, first install, same-path refresh, and cleanup. Visible desktop verification is required when Windows UI automation is available; otherwise the GUI must still be launched, captured, and inspected with the limitation recorded.
+
 ---
 
 ## 14. Agent registration, provisioning, and lifecycle

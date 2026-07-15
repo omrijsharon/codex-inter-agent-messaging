@@ -1,6 +1,17 @@
-# Milestone 18 installation wizard verification
+# Milestones 18-19 installation wizard verification
 
 Verification completed on 2026-07-15 (Asia/Jerusalem) on Windows with Node.js 22.11.0, npm 10.9.0, Codex CLI/app-server 0.144.2, and package/plugin 0.4.0.
+
+## Native GUI and desktop-only correction
+
+- An Explorer-equivalent PATH reproduced the reported console failure: the Codex desktop Appx package was installed, but no public `codex` command was visible.
+- The packaged `app\resources\codex.exe` returned access denied outside Appx context. A copied probe ran, confirming that copying it would be technically possible but unsupported and update-fragile; the installer explicitly rejects that path and editor-extension-private binaries.
+- The native 780x600 WPF setup window detected the desktop app, displayed the compatible public CLI destination and `%USERPROFILE%\.codex`, exposed both Browse controls, defaulted official CLI recovery on, and rendered cleanly after a Windows PowerShell 5.1 Unicode-source regression was found and fixed by visual capture.
+- The final exact `cmd.exe /d /c INSTALL.cmd` probe found and corrected two launcher-only defects: process-wide hidden-window state suppressed WPF visibility, and `%~dp0` ended in a separator before a native closing quote. Console-only hiding plus `%~dp0.` produced a visible titled window that closed normally without starting installation.
+- `test:installer` passes eight backend/launcher scenarios, including Explorer PATH and desktop-only recovery planning. `test:installer:gui` launches actual STA windows and passes cancel, success, failure, and custom Unicode/spaced Codex-home states.
+- The official OpenAI standalone installer was exercised in isolation. Recovery is pinned to Codex `0.144.2` from the generated protocol manifest rather than silently installing the current unreviewed latest version. Its package cache uses the selected Codex home through a Windows-compatible short alias to tolerate the upstream tar Unicode-path limitation.
+- `smoke:installer` completed official CLI recovery with no Codex command on PATH, first plugin install, same-path refresh, plugin/CLI verification, user-PATH test-entry removal, temporary-tree removal, and `cleanup: clean`.
+- Windows Computer Use was requested for the visible check, but its native control pipe was unavailable. The real window was therefore launched, captured after render, and visually inspected using the documented fallback; no browser-visible workflow was in scope.
 
 ## Installation contract and deterministic checks
 

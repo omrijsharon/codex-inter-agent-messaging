@@ -3,6 +3,8 @@
 ## Installation wizard update (unreleased)
 
 - Adds root `INSTALL.cmd` plus an idempotent PowerShell wizard for locked build/validation, current-user CLI installation, repository marketplace registration, plugin installation/refresh, and post-install verification.
+- Replaces the default console experience with a native Windows GUI that detects the desktop Appx package, supports public CLI and Codex data-directory selection, and offers a manifest-pinned official CLI install when desktop Codex is present without a public command.
+- Rejects WindowsApps/editor-private binaries, validates exact Codex protocol compatibility, and preserves console/JSON/dry-run automation through explicit launcher arguments.
 - Adds dry-run/JSON diagnostics, fail-closed marketplace collision handling, deterministic installer tests, and an isolated first-install/reinstall/cleanup smoke test.
 - Fixes CLI/host/MCP executable detection for equivalent Windows short, long, linked, spaced, and Unicode paths, and adds bounded recovery for transient Windows plugin-runtime replacement locks.
 - Regenerates protocol artifacts for Codex CLI/app-server `0.144.2`: 1,008 files, digest `00d059e58c3fe4320c38af5bca1070f7a72d06c1598937991b035845e5f57627`. Structural comparison against `0.144.0-alpha.4` found no schema changes; only aggregate-definition order changed.

@@ -2,7 +2,7 @@
 
 ## Supported baseline
 
-- Windows, Node.js 22.11+, npm 10.9+, and Codex CLI/app-server `0.144.2`
+- Windows, Node.js 22.11+, npm 10.9+, the Codex desktop app, and a compatible public Codex CLI/app-server (`0.144.2` for this repository snapshot)
 - A source checkout or reviewed release directory containing the repository marketplace
 - Participating recipient histories that are closed in independently owned Codex desktop/IDE processes
 
@@ -10,15 +10,23 @@ The plugin is transport tooling, not a coordinator. Messages are sent only when 
 
 ## One-click Windows installation
 
-After downloading or cloning the repository, review the source and double-click `INSTALL.cmd` in the repository root. The console stays open and reports the failed step if installation cannot finish. Administrator privileges are not normally required; Node.js/npm must have a writable current-user global prefix.
+After downloading or cloning the repository, review the source and double-click `INSTALL.cmd` in the repository root. A native setup window opens; no terminal knowledge is required. Administrator privileges are not normally required, and Node.js/npm must have a writable current-user global prefix.
+
+The Codex desktop Appx package contains a private agent binary, but Windows does not expose that file as a public command to ordinary installers. The wizard detects the desktop app for guidance and never copies or invokes its private WindowsApps binary. If no compatible public CLI exists, leave **Install the official standalone Codex CLI** checked. The wizard installs the exact version pinned by `generated/codex/manifest.json` from OpenAI's official Windows endpoint.
+
+The setup window provides two selections:
+
+- **Codex CLI executable:** an optional standalone `codex.exe`; editor-extension and WindowsApps-private binaries are rejected.
+- **Codex data directory:** defaults to `%USERPROFILE%\.codex`, the same directory used by the Windows desktop app. Select an existing directory if you intentionally use another `CODEX_HOME`.
 
 The wizard performs these bounded actions:
 
-1. Checks Node.js 22.11+, npm 10.9+, and the Codex plugin command surface.
-2. Runs the locked dependency install, production/plugin build, and plugin validation.
-3. Installs the companion `codex-inter-agent` CLI into npm's current-user global prefix.
-4. Registers this repository as marketplace `codex-inter-agent-local`.
-5. Installs or refreshes `codex-inter-agent-messaging@codex-inter-agent-local` and verifies that it is enabled.
+1. Checks Node.js 22.11+, npm 10.9+, the desktop installation, the selected Codex data directory, and the public Codex plugin command surface.
+2. With consent, installs the compatible official standalone Codex CLI when it is missing or incompatible.
+3. Runs the locked dependency install, production/plugin build, and plugin validation.
+4. Installs the companion `codex-inter-agent` CLI into npm's current-user global prefix.
+5. Registers this repository as marketplace `codex-inter-agent-local`.
+6. Installs or refreshes `codex-inter-agent-messaging@codex-inter-agent-local` and verifies that it is enabled.
 
 It does not set `BRIDGE_AGENT_ID`, register or replace agents, stop a running host, start a delivery, or modify Codex histories. Rerunning it from the same repository is safe. Keep the downloaded repository at the same location for future refreshes; the installed plugin is cached, but its local marketplace remains associated with this repository path.
 
@@ -33,6 +41,8 @@ For machine-readable diagnostics without writes:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-plugin.ps1 -DryRun -Json
 ```
+
+For a desktop-only machine with no public `codex` command, include `-InstallCodexCli` in the backend dry run to plan the compatible official CLI installation without downloading it. Passing any argument to `INSTALL.cmd` selects console/automation mode; double-clicking it with no arguments opens the GUI.
 
 After a successful install, completely restart Codex or open a new task. Existing active tasks do not gain newly installed MCP tools mid-session.
 

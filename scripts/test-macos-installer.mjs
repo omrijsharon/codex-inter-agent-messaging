@@ -55,7 +55,7 @@ try {
 set -euo pipefail
 state="\${CODEX_HOME:?}/fake-marketplace"
 plugin_state="\${CODEX_HOME:?}/fake-plugin"
-if [[ "\${1:-}" == "--version" ]]; then echo "codex-cli 0.144.2"; exit 0; fi
+if [[ "\${1:-}" == "--version" ]]; then echo "codex-cli \${FAKE_CODEX_VERSION:-0.144.2}"; exit 0; fi
 if [[ "\${1:-}" == "plugin" && "\${2:-}" == "--help" ]]; then echo "plugin commands"; exit 0; fi
 if [[ "\${1:-}" == "plugin" && "\${2:-}" == "marketplace" && "\${3:-}" == "list" ]]; then
   [[ -f "$state" ]] && printf 'codex-inter-agent-local %s\\n' "$(cat "$state")"
@@ -126,6 +126,32 @@ echo "unexpected fake codex command: $*" >&2; exit 40
   assert.notEqual(rejected.status, 0);
   assert.match(`${rejected.stdout}${rejected.stderr}`, /private to Codex\.app/u);
 
+  const missing = spawnSync(
+    "/bin/bash",
+    [
+      backend,
+      "--repository-root",
+      root,
+      "--codex-executable",
+      path.join(temp, "missing-codex"),
+      "--codex-home",
+      codexHome,
+      "--dry-run",
+    ],
+    { encoding: "utf8" },
+  );
+  assert.notEqual(missing.status, 0);
+  assert.match(`${missing.stdout}${missing.stderr}`, /not executable/u);
+
+  const recovery = JSON.parse(
+    execFileSync("/bin/bash", [...common, "--install-codex-cli", "--dry-run", "--json"], {
+      encoding: "utf8",
+      env: { ...process.env, FAKE_CODEX_VERSION: "0.143.0" },
+    }),
+  );
+  assert.equal(recovery.officialCliInstallPlanned, true);
+  assert.equal(recovery.supportedCodexVersion, "0.144.2");
+
   const conflictingHome = path.join(temp, "conflicting-home");
   await mkdir(conflictingHome, { recursive: true });
   await writeFile(path.join(conflictingHome, "fake-marketplace"), "/another/repository");
@@ -148,8 +174,51 @@ echo "unexpected fake codex command: $*" >&2; exit 40
   assert.notEqual(collision.status, 0);
   assert.match(`${collision.stdout}${collision.stderr}`, /will not rebind/u);
 
+  const failingNpm = path.join(temp, "bin", "failing-npm");
+  await writeFile(
+    failingNpm,
+    '#!/bin/bash\nif [[ "${1:-}" == "--version" ]]; then echo 10.9.0; exit 0; fi\necho staged npm failure >&2\nexit 31\n',
+  );
+  await chmod(failingNpm, 0o755);
+  const failureHome = path.join(temp, "Failure Home ü");
+  const failureCodexHome = path.join(failureHome, ".codex");
+  const failureInstallRoot = path.join(
+    failureHome,
+    "Library",
+    "Application Support",
+    "Codex Messaging",
+  );
+  await mkdir(failureCodexHome, { recursive: true });
+  const stagedFailure = spawnSync(
+    "/bin/bash",
+    [
+      backend,
+      "--repository-root",
+      root,
+      "--codex-executable",
+      fakeCodex,
+      "--codex-home",
+      failureCodexHome,
+      "--install-root",
+      failureInstallRoot,
+      "--json",
+    ],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HOME: failureHome,
+        INTER_AGENT_INSTALLER_NPM_COMMAND: failingNpm,
+      },
+    },
+  );
+  assert.notEqual(stagedFailure.status, 0);
+  const stagedFailureResult = JSON.parse(stagedFailure.stdout);
+  assert.equal(stagedFailureResult.step, "Install locked dependencies");
+  await assert.rejects(access(path.join(failureInstallRoot, "source")));
+
   process.stdout.write(
-    "macOS installer tests: 5 scenarios passed (static, dry-run, wizard, private CLI, collision)\n",
+    "macOS installer tests: 8 scenarios passed (static, dry-run, wizard, private/missing/incompatible CLI, collision, staged failure)\n",
   );
 } finally {
   await rm(temp, { recursive: true, force: true });

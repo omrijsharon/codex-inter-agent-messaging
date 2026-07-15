@@ -151,7 +151,7 @@ node_command="$(find_command node || true)"
   printf 'Node.js %s or newer was not found. Install Node.js, then retry.\n' "$MINIMUM_NODE" >&2
   exit 1
 }
-npm_command="$(find_command npm || true)"
+npm_command="${INTER_AGENT_INSTALLER_NPM_COMMAND:-$(find_command npm || true)}"
 [[ -n "$npm_command" ]] || fail "npm $MINIMUM_NPM or newer was not found. Install npm with Node.js, then retry."
 
 current_step="Check installer payload"
